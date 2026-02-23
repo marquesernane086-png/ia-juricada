@@ -50,7 +50,7 @@ async def process_question(
     
     # Step 2: Generate doctrinal response
     if filtered_results:
-        answer = reasoning_service.generate_response(question, search_results)
+        answer = reasoning_service.generate_response(question, filtered_results)
     else:
         answer = (
             "## RELATÓRIO\n\n"
@@ -64,7 +64,7 @@ async def process_question(
     
     # Step 3: Build source references
     sources = []
-    for result in search_results:
+    for result in filtered_results:
         meta = result.get("metadata", {})
         year = meta.get("year")
         if isinstance(year, str):
