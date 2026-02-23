@@ -126,10 +126,6 @@ def detect_divergence(author_groups: Dict[str, List[Dict]]) -> List[Dict]:
             author_a = authors[i]
             author_b = authors[j]
             
-            # Check if they discuss similar topics
-            texts_a = [r["text"][:200] for r in author_groups[author_a]]
-            texts_b = [r["text"][:200] for r in author_groups[author_b]]
-            
             years_a = [r["metadata"].get("year") for r in author_groups[author_a] if r["metadata"].get("year")]
             years_b = [r["metadata"].get("year") for r in author_groups[author_b] if r["metadata"].get("year")]
             
