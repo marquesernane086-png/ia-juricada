@@ -36,7 +36,9 @@ def extract_pdf_text(file_path: str) -> Tuple[str, Dict]:
         full_text = ""
         page_texts = []
         
-        for page_num in range(len(doc)):
+        total_pages = len(doc)
+        
+        for page_num in range(total_pages):
             page = doc[page_num]
             text = page.get_text("text")
             if text.strip():
@@ -51,7 +53,7 @@ def extract_pdf_text(file_path: str) -> Tuple[str, Dict]:
         extracted_meta = {
             "title": metadata.get("title", "") or "",
             "author": metadata.get("author", "") or "",
-            "total_pages": len(doc) if hasattr(doc, '__len__') else len(page_texts),
+            "total_pages": total_pages,
             "subject": metadata.get("subject", "") or "",
             "creator": metadata.get("creator", "") or "",
             "producer": metadata.get("producer", "") or "",
