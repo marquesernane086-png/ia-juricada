@@ -276,20 +276,22 @@ export default function ChatPage() {
               doutrinárias.
             </p>
 
-            {stats && stats.indexed_documents > 0 && (
+            {stats && (stats.indexed_documents > 0 || stats.total_chunks > 0) && (
               <div className="flex gap-3 mb-6">
-                <Badge variant="secondary" className="text-xs">
-                  <BookOpen className="w-3 h-3 mr-1" />
-                  {stats.indexed_documents} obra(s) indexada(s)
-                </Badge>
+                {stats.indexed_documents > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    <BookOpen className="w-3 h-3 mr-1" />
+                    {stats.indexed_documents} obra(s) indexada(s)
+                  </Badge>
+                )}
                 <Badge variant="secondary" className="text-xs">
                   <FileText className="w-3 h-3 mr-1" />
-                  {stats.total_chunks} trechos
+                  {stats.total_chunks.toLocaleString()} trechos indexados
                 </Badge>
               </div>
             )}
 
-            {stats && stats.indexed_documents === 0 && (
+            {stats && stats.indexed_documents === 0 && stats.total_chunks === 0 && (
               <Card className="mb-6 max-w-md border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
                 <CardContent className="p-4 text-sm text-amber-800 dark:text-amber-200">
                   <p className="font-medium mb-1">📚 Nenhum livro indexado</p>
