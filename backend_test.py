@@ -100,7 +100,7 @@ def test_indexing_poll(document_id):
                         break
                 
                 if target_doc:
-                    status = target_doc.get('indexing_status', 'unknown')
+                    status = target_doc.get('status', 'unknown')
                     print(f"Document status: {status}")
                     
                     if status == 'indexed':
