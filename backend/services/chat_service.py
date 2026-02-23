@@ -43,8 +43,13 @@ async def process_question(
         where_filter=where_filter
     )
     
+    # Step 1.5: Filter out low-relevance results (score threshold)
+    MIN_RELEVANCE_SCORE = 0.75
+    filtered_results = [r for r in search_results if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
+    logger.info(f"Results: {len(search_results)} total, {len(filtered_results)} above threshold ({MIN_RELEVANCE_SCORE})")
+    
     # Step 2: Generate doctrinal response
-    if search_results:
+    if filtered_results:
         answer = reasoning_service.generate_response(question, search_results)
     else:
         answer = (
