@@ -64,13 +64,22 @@ Do NOT invent or fabricate citations. Only cite what is provided in the context.
 
 
 def get_openai_client() -> OpenAI:
-    """Get configured OpenAI client."""
+    """Get configured OpenAI client using Emergent proxy."""
     api_key = os.environ.get('OPENAI_API_KEY', '')
-    base_url = os.environ.get('OPENAI_BASE_URL', 'https://ai-gateway.mywonder.xyz/v1')
+    # Use Emergent integration proxy for LLM calls
+    proxy_url = os.environ.get('INTEGRATION_PROXY_URL', 'https://integrations.emergentagent.com')
+    base_url = f"{proxy_url}/llm"
+    
+    headers = {}
+    # Add app identifier for Emergent routing
+    app_url = os.environ.get('APP_URL') or os.environ.get('REACT_APP_BACKEND_URL', '')
+    if app_url:
+        headers['X-App-ID'] = app_url
     
     return OpenAI(
         api_key=api_key,
-        base_url=base_url
+        base_url=base_url,
+        default_headers=headers
     )
 
 
