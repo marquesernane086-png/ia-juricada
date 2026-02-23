@@ -160,7 +160,10 @@ def build_context(results: List[Dict]) -> str:
             
             context_parts.append(f"\nObra: {title} ({year})")
             if page:
-                context_parts.append(f"Página/Capítulo: {page}")
+                context_parts.append(f"Página: {page}")
+            chapter = meta.get("chapter", "")
+            if chapter:
+                context_parts.append(f"Capítulo: {chapter}")
             context_parts.append(f"Relevância: {score:.2%}")
             context_parts.append(f"Trecho:\n{chunk['text']}")
             context_parts.append("-" * 40)
