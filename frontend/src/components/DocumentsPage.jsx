@@ -208,10 +208,13 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [editDoc, setEditDoc] = useState(null);
   const [editForm, setEditForm] = useState({});
   const fileInputRef = useRef(null);
+  const importInputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
 
   const fetchDocuments = useCallback(async () => {
