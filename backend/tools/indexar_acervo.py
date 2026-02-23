@@ -363,6 +363,7 @@ for raiz, _, arquivos in os.walk(PASTA_LIVROS):
                         "hash": file_hash,
                         "page": pg["pagina"],
                         "pagina": pg["pagina"],
+                        "capitulo": pg.get("capitulo", ""),
                     },
                 )
                 documentos.append(doc)
