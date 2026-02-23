@@ -110,6 +110,21 @@ async def health_check():
         return {"status": "degraded", "error": str(e)}
 
 
+@api_router.get("/download/indexador")
+async def download_indexador():
+    """Download the local indexing script package."""
+    from fastapi.responses import FileResponse
+    zip_path = ROOT_DIR / "data" / "uploads" / "jurista_indexador.zip"
+    if not zip_path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Package not found")
+    return FileResponse(
+        path=str(zip_path),
+        filename="jurista_indexador.zip",
+        media_type="application/zip"
+    )
+
+
 # Import and register route modules
 from routes import document_routes, chat_routes, import_routes
 
