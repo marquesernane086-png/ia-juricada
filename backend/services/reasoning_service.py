@@ -206,14 +206,17 @@ def generate_response(
     context = build_context(weighted_results)
     
     # Build user message
-    user_message = f"""PERGUNTA JURÍDICA:
+    user_message = f"""PERGUNTA DO USUÁRIO:
 {question}
 
-CONTEXTO DOUTRINÁRIO:
+TRECHOS DO ACERVO INDEXADO (ÚNICA FONTE DE INFORMAÇÃO PERMITIDA):
 {context}
 
-Responda com fundamentação doutrinária estruturada, citando as fontes fornecidas acima.
-Se não houver fontes relevantes, informe honestamente."""
+INSTRUÇÕES:
+- Use APENAS os trechos acima para responder. NÃO use conhecimento externo.
+- Se os trechos não contêm informação suficiente, diga: "O acervo indexado não contém informações suficientes sobre este tema. Considere adicionar obras doutrinárias relacionadas."
+- Cite APENAS autores e obras que aparecem nos metadados dos trechos acima.
+- NÃO complemente com informações que não estejam nos trechos."""
     
     try:
         response = client.chat.completions.create(
