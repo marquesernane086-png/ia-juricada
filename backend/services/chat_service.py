@@ -97,5 +97,5 @@ async def process_question(
         session_id=session_id,
         question=question,
         processing_time=round(processing_time, 2),
-        chunks_retrieved=len(search_results)
+        chunks_retrieved=len(filtered_results)
     )
