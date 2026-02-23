@@ -1,11 +1,9 @@
-# Dependências para indexação local - JuristaAI
+# Dependencias para indexacao local - JuristaAI
 # Instale com: pip install -r requirements_local.txt
 
-sentence-transformers>=3.0.0
-chromadb>=0.5.0
+llama-index>=0.14.0
+llama-index-embeddings-huggingface>=0.6.0
 PyMuPDF>=1.24.0
 ebooklib>=0.18
 beautifulsoup4>=4.12.0
 lxml>=5.0.0
-langchain-text-splitters>=0.2.0
-tqdm>=4.66.0
