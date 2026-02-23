@@ -86,7 +86,7 @@ async def _process_document(doc_id: str, file_path: str, file_name: str):
         # Step 3: Add to LlamaIndex (handles chunking + embedding automatically)
         indexed_count = vector_service.add_document(full_text, doc_metadata)
         
-        # Step 5: Update document status
+        # Step 4: Update document status
         await db.documents.update_one(
             {"id": doc_id},
             {"$set": {
