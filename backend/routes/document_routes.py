@@ -64,38 +64,27 @@ async def _process_document(doc_id: str, file_path: str, file_name: str):
         
         await db.documents.update_one({"id": doc_id}, {"$set": update_fields})
         
-        # Step 2: Get current document metadata for chunk creation
+        # Step 2: Get current document metadata
         doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
         
-        chunk_metadata = {
+        doc_metadata = {
             "doc_id": doc_id,
+            "autor": doc.get("author", ""),
             "author": doc.get("author", ""),
+            "arquivo": file_name,
             "title": doc.get("title", file_name),
-            "year": doc.get("year"),
+            "ano": doc.get("year", 0),
+            "year": doc.get("year", 0),
             "edition": doc.get("edition", ""),
+            "materia": doc.get("legal_subject", ""),
             "legal_subject": doc.get("legal_subject", ""),
             "legal_institute": doc.get("legal_institute", ""),
+            "hash": doc.get("file_hash", ""),
+            "caminho": str(file_path),
         }
         
-        # Step 3: Chunk the text
-        chunk_size = int(os.environ.get('CHUNK_SIZE', 1000))
-        chunk_overlap = int(os.environ.get('CHUNK_OVERLAP', 200))
-        
-        page_texts = extracted_meta.get("page_texts") or extracted_meta.get("chapter_texts")
-        
-        chunks = indexing_service.create_chunks(
-            text=full_text,
-            metadata=chunk_metadata,
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            page_texts=page_texts
-        )
-        
-        if not chunks:
-            raise ValueError("No chunks created from document.")
-        
-        # Step 4: Index chunks into vector store
-        indexed_count = vector_service.index_chunks(chunks)
+        # Step 3: Add to LlamaIndex (handles chunking + embedding automatically)
+        indexed_count = vector_service.add_document(full_text, doc_metadata)
         
         # Step 5: Update document status
         await db.documents.update_one(
