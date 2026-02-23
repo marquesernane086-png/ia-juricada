@@ -423,7 +423,7 @@ Exemplos:
                 continue
             
             if not full_text.strip() or len(full_text.strip()) < 100:
-                logger.warning(f"   ⚠️ Texto insuficiente extraído. Pulando.")
+                logger.warning("   ⚠️ Texto insuficiente extraído. Pulando.")
                 books_errored += 1
                 progress["errors"].append({
                     "file": file_name,
@@ -460,7 +460,7 @@ Exemplos:
             )
             
             if not chunks:
-                logger.warning(f"   ⚠️ Nenhum chunk criado. Pulando.")
+                logger.warning("   ⚠️ Nenhum chunk criado. Pulando.")
                 books_errored += 1
                 continue
             
@@ -576,23 +576,23 @@ Exemplos:
     logger.info(f"📝 Total de chunks: {total_chunks_added:,}")
     logger.info(f"💾 Chunks no banco: {collection.count():,}")
     logger.info(f"⏱️  Tempo: {elapsed_str}")
-    logger.info(f"")
+    logger.info("")
     logger.info(f"📦 Exportado para: {export_dir}")
-    logger.info(f"   vectordb/     — banco de vetores ChromaDB")
-    logger.info(f"   metadata.json — metadados dos livros")
-    logger.info(f"   indexacao_log.json — log completo")
+    logger.info("   vectordb/     — banco de vetores ChromaDB")
+    logger.info("   metadata.json — metadados dos livros")
+    logger.info("   indexacao_log.json — log completo")
     
     # Tamanho da exportação
     export_size = sum(
         f.stat().st_size for f in export_dir.rglob('*') if f.is_file()
     ) / (1024**3)
-    logger.info(f"")
+    logger.info("")
     logger.info(f"📊 Tamanho da exportação: {export_size:.2f}GB")
-    logger.info(f"")
+    logger.info("")
     logger.info(f"Próximo passo: transfira a pasta '{export_dir}' para o servidor JuristaAI")
     
     if books_errored > 0:
-        logger.info(f"")
+        logger.info("")
         logger.info(f"⚠️  {books_errored} livros tiveram erro. Veja indexacao_log.json para detalhes.")
 
 
