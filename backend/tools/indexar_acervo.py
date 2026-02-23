@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-JuristaAI — Script de Indexação Local
+JuristaAI - Script de Indexacao Local
 =====================================
-Processa livros jurídicos (PDF/EPUB) e cria banco vetorial para o JuristaAI.
+Processa livros juridicos (PDF/EPUB) e cria banco vetorial para o JuristaAI.
 
 Uso:
-    python indexar_acervo.py --pasta "C:\Users\joaop\OneDrive\IA DIREITO"
+    python indexar_acervo.py --pasta "CAMINHO_DA_PASTA"
 
 Autor: JuristaAI
 """
