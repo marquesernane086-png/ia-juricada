@@ -187,8 +187,8 @@ def delete_document_chunks(doc_id: str) -> int:
 def import_index(source_dir: str) -> int:
     """Import a pre-built LlamaIndex index from a directory.
 
-    This replaces the current index with the imported one,
-    or merges if there's already data.
+    ALWAYS replaces the current index with the imported one.
+    This avoids slow re-embedding during merge.
 
     Args:
         source_dir: Path to the LlamaIndex persist directory
@@ -204,50 +204,30 @@ def import_index(source_dir: str) -> int:
     if not os.path.exists(docstore_path):
         raise ValueError(f"No docstore.json found in {source_dir}")
 
-    # If no existing index, just copy the new one
-    existing_docstore = os.path.join(INDEX_DIR, "docstore.json")
-    if not os.path.exists(existing_docstore):
-        logger.info(f"No existing index. Copying imported index to {INDEX_DIR}")
-        os.makedirs(INDEX_DIR, exist_ok=True)
-        for item in Path(source_dir).iterdir():
-            dest = Path(INDEX_DIR) / item.name
-            if item.is_file():
-                shutil.copy2(str(item), str(dest))
-            elif item.is_dir():
-                if dest.exists():
-                    shutil.rmtree(str(dest))
-                shutil.copytree(str(item), str(dest))
+    # Always replace: copy imported index directly
+    logger.info(f"Replacing index with imported data from {source_dir}")
+    os.makedirs(INDEX_DIR, exist_ok=True)
 
-        # Reset singleton to reload
-        _index = None
-        index = get_index()
-        count = len(index.docstore.docs) if index else 0
-        logger.info(f"Imported index with {count} documents")
-        return count
+    # Clear existing index files
+    for item in Path(INDEX_DIR).iterdir():
+        if item.is_file():
+            item.unlink()
+        elif item.is_dir():
+            shutil.rmtree(str(item))
 
-    # If existing index, merge
-    logger.info("Merging imported index with existing index")
+    # Copy new index files
+    for item in Path(source_dir).iterdir():
+        dest = Path(INDEX_DIR) / item.name
+        if item.is_file():
+            shutil.copy2(str(item), str(dest))
+        elif item.is_dir():
+            shutil.copytree(str(item), str(dest))
 
-    # Load the imported index
-    imported_storage = StorageContext.from_defaults(persist_dir=source_dir)
-    imported_index = load_index_from_storage(imported_storage)
-
-    # Get current index
-    current_index = get_index()
-
-    # Insert all documents from imported into current
-    count = 0
-    for node_id, node in imported_index.docstore.docs.items():
-        try:
-            doc = Document(text=node.get_content(), metadata=node.metadata or {})
-            current_index.insert(doc)
-            count += 1
-        except Exception as e:
-            logger.warning(f"Could not import node {node_id}: {e}")
-
-    current_index.storage_context.persist(persist_dir=INDEX_DIR)
-    _index = current_index
-    logger.info(f"Merged {count} documents into existing index")
+    # Reset singleton to reload
+    _index = None
+    index = get_index()
+    count = len(index.docstore.docs) if index else 0
+    logger.info(f"Imported index with {count} documents")
     return count
 
 
