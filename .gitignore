@@ -77,4 +77,6 @@ agenthub/agents/youtube/db
 .cache/
 
 # Mobile development
-android-sdk/ 
+android-sdk/ backend/data/indice/docstore.json
+backend/data/indice/default__vector_store.json
+backend/data/indice/docstore.json
