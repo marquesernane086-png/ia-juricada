@@ -291,12 +291,12 @@ for raiz, _, arquivos in os.walk(PASTA_LIVROS):
 
         try:
             if ext.endswith(".pdf"):
-                texto = ler_pdf(caminho)
+                texto, paginas = ler_pdf(caminho)
             else:
-                texto = ler_epub(caminho)
+                texto, paginas = ler_epub(caminho)
 
             if len(texto.strip()) < 500:
-                logger.warning(f"  Texto muito pequeno - ignorado")
+                logger.warning("  Texto muito pequeno - ignorado")
                 livros_erro += 1
                 continue
 
@@ -306,27 +306,32 @@ for raiz, _, arquivos in os.walk(PASTA_LIVROS):
             materia = detectar_materia(arquivo, texto, raiz)
 
             logger.info(f"  Autor: {autor or '?'}")
-            logger.info(f"  Ano: {ano or '?'} | Materia: {materia}")
+            logger.info(f"  Ano: {ano or '?'} | Materia: {materia} | Paginas: {len(paginas)}")
             if edicao:
                 logger.info(f"  Edicao: {edicao}")
 
-            doc = Document(
-                text=texto,
-                metadata={
-                    "arquivo": arquivo,
-                    "caminho": raiz,
-                    "ano": ano,
-                    "author": autor,
-                    "autor": autor,
-                    "title": Path(arquivo).stem,
-                    "edicao": edicao,
-                    "materia": materia,
-                    "legal_subject": materia,
-                    "hash": file_hash,
-                },
-            )
-
-            documentos.append(doc)
+            # Criar um Document POR PAGINA para preservar numero da pagina
+            for pg in paginas:
+                if len(pg["texto"].strip()) < 50:
+                    continue
+                doc = Document(
+                    text=pg["texto"],
+                    metadata={
+                        "arquivo": arquivo,
+                        "caminho": raiz,
+                        "ano": ano,
+                        "author": autor,
+                        "autor": autor,
+                        "title": Path(arquivo).stem,
+                        "edicao": edicao,
+                        "materia": materia,
+                        "legal_subject": materia,
+                        "hash": file_hash,
+                        "page": pg["pagina"],
+                        "pagina": pg["pagina"],
+                    },
+                )
+                documentos.append(doc)
 
             controle[file_hash] = {
                 "arquivo": arquivo,
@@ -334,14 +339,15 @@ for raiz, _, arquivos in os.walk(PASTA_LIVROS):
                 "ano": ano,
                 "edicao": edicao,
                 "materia": materia,
+                "paginas": len(paginas),
             }
 
             salvar_controle()
             livros_processados += 1
 
-            # Indexar em lotes de 10 para nao perder progresso
-            if len(documentos) >= 10:
-                logger.info(f"  Indexando lote de {len(documentos)} documentos...")
+            # Indexar em lotes de 50 documentos (paginas) para nao perder progresso
+            if len(documentos) >= 50:
+                logger.info(f"  Indexando lote de {len(documentos)} paginas...")
                 if os.path.exists(PASTA_INDICE):
                     storage = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
                     index = load_index_from_storage(storage)
@@ -351,7 +357,7 @@ for raiz, _, arquivos in os.walk(PASTA_LIVROS):
                     index = VectorStoreIndex.from_documents(documentos)
                 index.storage_context.persist(persist_dir=PASTA_INDICE)
                 documentos = []
-                logger.info(f"  Lote indexado e salvo!")
+                logger.info("  Lote indexado e salvo!")
 
         except Exception as e:
             logger.error(f"  Erro: {e}")
