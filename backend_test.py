@@ -88,7 +88,8 @@ def test_indexing_poll(document_id):
             response = requests.get(f"{BASE_URL}/documents", timeout=10)
             
             if response.status_code == 200:
-                documents = response.json()
+                result = response.json()
+                documents = result.get('documents', [])
                 print(f"Retrieved {len(documents)} documents")
                 
                 # Find our document
