@@ -216,6 +216,7 @@ export default function DocumentsPage() {
   const fileInputRef = useRef(null);
   const importInputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
+  const [importDragOver, setImportDragOver] = useState(false);
 
   const fetchDocuments = useCallback(async () => {
     try {
