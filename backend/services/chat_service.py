@@ -44,7 +44,8 @@ async def process_question(
     )
     
     # Step 1.5: Filter out low-relevance results (score threshold)
-    MIN_RELEVANCE_SCORE = 0.75
+    # LlamaIndex scores vary by retriever; use a flexible threshold
+    MIN_RELEVANCE_SCORE = 0.35
     filtered_results = [r for r in search_results if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
     logger.info(f"Results: {len(search_results)} total, {len(filtered_results)} above threshold ({MIN_RELEVANCE_SCORE})")
     
