@@ -85,11 +85,16 @@ def hash_arquivo(path):
 # ============================================================
 
 def ler_pdf(path):
+    """Retorna texto completo E lista de paginas com numero."""
     texto = ""
+    paginas = []
     with fitz.open(path) as doc:
-        for page in doc:
-            texto += page.get_text()
-    return texto
+        for i, page in enumerate(doc):
+            page_text = page.get_text()
+            if page_text.strip():
+                paginas.append({"pagina": i + 1, "texto": page_text.strip()})
+                texto += page_text
+    return texto, paginas
 
 
 # ============================================================
@@ -97,13 +102,20 @@ def ler_pdf(path):
 # ============================================================
 
 def ler_epub(path):
+    """Retorna texto completo E lista de capitulos com numero."""
     texto = ""
+    paginas = []
     book = epub.read_epub(path, options={'ignore_ncx': True})
+    cap_num = 0
     for item in book.get_items():
         if item.get_type() == 9:
             soup = BeautifulSoup(item.get_content(), "html.parser")
-            texto += soup.get_text()
-    return texto
+            page_text = soup.get_text()
+            if page_text.strip() and len(page_text.strip()) > 50:
+                cap_num += 1
+                paginas.append({"pagina": cap_num, "texto": page_text.strip()})
+                texto += page_text
+    return texto, paginas
 
 
 # ============================================================
