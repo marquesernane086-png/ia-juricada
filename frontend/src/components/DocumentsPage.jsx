@@ -414,15 +414,29 @@ export default function DocumentsPage() {
           )}
         </div>
 
-        {/* Import package area */}
-        <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
-          <PackageOpen className="w-5 h-5 text-amber-600 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium">Importar acervo pré-indexado</p>
-            <p className="text-[10px] text-muted-foreground">
-              ZIP gerado pelo script de indexação local
-            </p>
-          </div>
+        {/* Import package area - drag & drop */}
+        <div
+          className={`upload-dropzone border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
+            importDragOver
+              ? "drag-over border-blue-500 bg-blue-50 dark:bg-blue-950/20"
+              : "border-border hover:border-blue-300"
+          }`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setImportDragOver(true);
+          }}
+          onDragLeave={() => setImportDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setImportDragOver(false);
+            const file = Array.from(e.dataTransfer.files).find(f => f.name.endsWith(".zip"));
+            if (file) {
+              handleImportPackage({ target: { files: [file], value: "" } });
+            }
+          }}
+          onClick={() => importInputRef.current?.click()}
+          data-testid="import-dropzone"
+        >
           <input
             ref={importInputRef}
             type="file"
@@ -431,21 +445,23 @@ export default function DocumentsPage() {
             onChange={handleImportPackage}
             data-testid="import-input"
           />
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs flex-shrink-0"
-            onClick={() => importInputRef.current?.click()}
-            disabled={importing}
-            data-testid="import-button"
-          >
-            {importing ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <PackageOpen className="w-3.5 h-3.5 mr-1.5" />
-            )}
-            {importing ? "Importando..." : "Importar ZIP"}
-          </Button>
+          {importing ? (
+            <>
+              <Loader2 className="w-8 h-8 mx-auto mb-2 text-blue-500 animate-spin" />
+              <p className="text-sm font-medium">Importando acervo...</p>
+              <p className="text-xs text-muted-foreground mt-1">Aguarde, isso pode demorar</p>
+            </>
+          ) : (
+            <>
+              <PackageOpen className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+              <p className="text-sm font-medium">
+                Arraste o ZIP do acervo aqui ou clique para selecionar
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                ZIP gerado pelo script de indexação local (indice/ + controle_index.json)
+              </p>
+            </>
+          )}
         </div>
 
         {/* Import result message */}
