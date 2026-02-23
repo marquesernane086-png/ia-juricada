@@ -280,6 +280,39 @@ export default function DocumentsPage() {
     if (files.length > 0) handleUpload(files);
   };
 
+  const handleImportPackage = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.name.endsWith(".zip")) return;
+    
+    setImporting(true);
+    setImportResult(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const res = await axios.post(`${API}/import/upload-package`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 300000, // 5 min timeout for large files
+      });
+      
+      setImportResult({
+        success: true,
+        message: `Importação concluída! ${res.data.documents_imported} documentos, ${res.data.total_chunks} chunks.`
+      });
+      fetchDocuments();
+    } catch (err) {
+      console.error("Import error:", err);
+      setImportResult({
+        success: false,
+        message: `Erro na importação: ${err.response?.data?.detail || err.message}`
+      });
+    } finally {
+      setImporting(false);
+      e.target.value = "";
+    }
+  };
+
   const handleDelete = async (docId) => {
     try {
       await axios.delete(`${API}/documents/${docId}`);
