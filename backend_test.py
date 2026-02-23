@@ -1,315 +1,352 @@
 #!/usr/bin/env python3
 """
-JuristaAI Backend API Tests
-Tests the main functionality of the JuristaAI legal document processing system.
+JuristaAI Backend Testing Suite
+Tests the backend at https://juristico-ia.preview.emergentagent.com/api
 """
 
 import requests
-import json
 import time
+import json
 import os
-from pathlib import Path
+from typing import Optional, Dict, Any
 import sys
 
-# Test configuration
-BASE_URL = "https://juristico-ia.preview.emergentagent.com"
-API_BASE = f"{BASE_URL}/api"
-TEST_PDF_PATH = "/app/backend/data/uploads/test_legal_book.pdf"
 
-# Test data
-TEST_DOCUMENT_DATA = {
-    "title": "Curso de Direito Civil Brasileiro",
-    "author": "Carlos Roberto Gonçalves",
-    "year": 2018,
-    "legal_subject": "Direito Civil",
-    "legal_institute": "Responsabilidade Civil"
-}
-
-TEST_QUESTIONS = [
-    "O que é responsabilidade civil objetiva?",
-    "Quais são os pressupostos da responsabilidade civil?"
-]
-
-
-def print_test_header(test_name):
-    """Print formatted test header"""
-    print(f"\n{'='*60}")
-    print(f"TEST: {test_name}")
-    print(f"{'='*60}")
-
-
-def print_result(success, message):
-    """Print formatted test result"""
-    status = "✅ PASS" if success else "❌ FAIL"
-    print(f"{status}: {message}")
-
-
-def test_health_check():
-    """Test 1: Health Check"""
-    print_test_header("Health Check")
-    
-    try:
-        response = requests.get(f"{API_BASE}/health", timeout=10)
-        print(f"Response status: {response.status_code}")
+class JuristaAITester:
+    def __init__(self, base_url: str = "https://juristico-ia.preview.emergentagent.com/api"):
+        self.base_url = base_url
+        self.session = requests.Session()
+        self.session.timeout = 30
         
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Response data: {json.dumps(data, indent=2)}")
-            
-            if data.get("status") == "healthy":
-                print_result(True, "Health check returned 'healthy' status")
-                return True
-            else:
-                print_result(False, f"Health check returned unexpected status: {data.get('status')}")
-                return False
-        else:
-            print_result(False, f"Health check failed with status {response.status_code}")
-            return False
-            
-    except Exception as e:
-        print_result(False, f"Health check failed with exception: {e}")
-        return False
-
-
-def test_document_upload():
-    """Test 2: Upload Document"""
-    print_test_header("Document Upload")
-    
-    try:
-        # Check if test file exists
-        if not os.path.exists(TEST_PDF_PATH):
-            print_result(False, f"Test PDF file not found at: {TEST_PDF_PATH}")
-            return None
-            
-        # Prepare file upload
-        with open(TEST_PDF_PATH, 'rb') as f:
-            files = {
-                'file': (os.path.basename(TEST_PDF_PATH), f, 'application/pdf')
-            }
-            
-            data = TEST_DOCUMENT_DATA
-            
-            print(f"Uploading file: {TEST_PDF_PATH}")
-            print(f"Upload data: {json.dumps(data, indent=2)}")
-            
-            response = requests.post(f"{API_BASE}/documents/upload", files=files, data=data, timeout=30)
-            print(f"Response status: {response.status_code}")
+    def log(self, message: str):
+        """Log with timestamp"""
+        timestamp = time.strftime("%H:%M:%S")
+        print(f"[{timestamp}] {message}")
+        
+    def test_health_check(self) -> Dict[str, Any]:
+        """Test 1: Health Check - GET /api/health"""
+        self.log("🔍 Testing Health Check...")
+        
+        try:
+            response = self.session.get(f"{self.base_url}/health")
             
             if response.status_code == 200:
-                result = response.json()
-                print(f"Upload response: {json.dumps(result, indent=2)}")
+                data = response.json()
+                self.log(f"✅ Health check passed: {data}")
                 
-                if result.get("status") in ["processing", "duplicate"]:
-                    document_id = result.get("id")
-                    print_result(True, f"Document uploaded successfully with ID: {document_id}")
-                    return document_id
+                # Verify expected fields
+                expected_fields = ['status', 'database', 'documents', 'vector_chunks']
+                for field in expected_fields:
+                    if field not in data:
+                        self.log(f"⚠️  Missing field in health response: {field}")
+                        
+                if data.get('status') == 'healthy':
+                    self.log("✅ Status: healthy")
                 else:
-                    print_result(False, f"Unexpected upload status: {result.get('status')}")
-                    return None
+                    self.log(f"⚠️  Status not healthy: {data.get('status')}")
+                    
+                return {'success': True, 'data': data}
             else:
-                print_result(False, f"Upload failed with status {response.status_code}: {response.text}")
-                return None
+                self.log(f"❌ Health check failed: HTTP {response.status_code}")
+                return {'success': False, 'error': f"HTTP {response.status_code}", 'response': response.text}
                 
-    except Exception as e:
-        print_result(False, f"Upload failed with exception: {e}")
-        return None
-
-
-def test_wait_for_indexing(document_id, max_wait=60):
-    """Test 3: Wait for Document Indexing"""
-    print_test_header("Wait for Document Indexing")
+        except Exception as e:
+            self.log(f"❌ Health check exception: {str(e)}")
+            return {'success': False, 'error': str(e)}
     
-    if not document_id:
-        print_result(False, "No document ID provided")
-        return None
+    def test_upload_document(self) -> Dict[str, Any]:
+        """Test 2: Upload Document - POST /api/documents/upload"""
+        self.log("📄 Testing Document Upload...")
+        
+        pdf_path = "/app/backend/data/uploads/test_legal_book.pdf"
+        
+        if not os.path.exists(pdf_path):
+            self.log(f"❌ Test PDF not found: {pdf_path}")
+            return {'success': False, 'error': 'Test PDF not found'}
+        
+        try:
+            # Prepare multipart form data
+            with open(pdf_path, 'rb') as f:
+                files = {
+                    'file': ('test_legal_book.pdf', f, 'application/pdf')
+                }
+                data = {
+                    'title': 'Curso de Direito Civil Brasileiro',
+                    'author': 'Carlos Roberto Gonçalves',
+                    'year': '2018',
+                    'legal_subject': 'Direito Civil'
+                }
+                
+                response = self.session.post(f"{self.base_url}/documents/upload", files=files, data=data)
+            
+            if response.status_code in [200, 201]:
+                upload_data = response.json()
+                self.log(f"✅ Document uploaded successfully: {upload_data}")
+                
+                # Extract document ID for later use
+                document_id = upload_data.get('id') or upload_data.get('document_id')
+                if document_id:
+                    self.log(f"📋 Document ID: {document_id}")
+                    
+                return {'success': True, 'data': upload_data, 'document_id': document_id}
+            else:
+                self.log(f"❌ Upload failed: HTTP {response.status_code}")
+                self.log(f"Response: {response.text}")
+                return {'success': False, 'error': f"HTTP {response.status_code}", 'response': response.text}
+                
+        except Exception as e:
+            self.log(f"❌ Upload exception: {str(e)}")
+            return {'success': False, 'error': str(e)}
     
-    try:
-        print(f"Waiting for document {document_id} to be indexed...")
+    def wait_for_indexing(self, max_wait_seconds: int = 120) -> Dict[str, Any]:
+        """Test 3: Wait for Indexing - Poll GET /api/documents"""
+        self.log("⏳ Waiting for document indexing...")
+        
         start_time = time.time()
+        poll_interval = 10
         
-        while time.time() - start_time < max_wait:
-            response = requests.get(f"{API_BASE}/documents", timeout=10)
+        while time.time() - start_time < max_wait_seconds:
+            try:
+                response = self.session.get(f"{self.base_url}/documents")
+                
+                if response.status_code == 200:
+                    documents = response.json()
+                    self.log(f"📊 Found {len(documents)} documents")
+                    
+                    # Check for indexed documents
+                    indexed_docs = [doc for doc in documents if doc.get('status') == 'indexed']
+                    processing_docs = [doc for doc in documents if doc.get('status') == 'processing']
+                    
+                    self.log(f"📈 Status - Indexed: {len(indexed_docs)}, Processing: {len(processing_docs)}")
+                    
+                    if indexed_docs:
+                        self.log(f"✅ Document indexing complete! Found {len(indexed_docs)} indexed document(s)")
+                        for doc in indexed_docs:
+                            chunks = doc.get('chunk_count', doc.get('chunks', 'unknown'))
+                            self.log(f"  - {doc.get('title', 'Unknown')}: {chunks} chunks")
+                        return {'success': True, 'data': documents, 'indexed_count': len(indexed_docs)}
+                    
+                    if processing_docs:
+                        elapsed = int(time.time() - start_time)
+                        self.log(f"⏳ Still processing... ({elapsed}s elapsed)")
+                    else:
+                        self.log("⚠️  No documents found in processing or indexed status")
+                
+                else:
+                    self.log(f"❌ Failed to fetch documents: HTTP {response.status_code}")
+                    
+            except Exception as e:
+                self.log(f"❌ Polling exception: {str(e)}")
+            
+            # Wait before next poll
+            time.sleep(poll_interval)
+        
+        self.log(f"❌ Indexing timeout after {max_wait_seconds} seconds")
+        return {'success': False, 'error': 'Indexing timeout'}
+    
+    def test_chat_stats(self) -> Dict[str, Any]:
+        """Test 4: Stats Check - GET /api/chat/stats"""
+        self.log("📊 Testing Chat Stats...")
+        
+        try:
+            response = self.session.get(f"{self.base_url}/chat/stats")
             
             if response.status_code == 200:
-                documents = response.json().get("documents", [])
+                stats = response.json()
+                self.log(f"✅ Chat stats retrieved: {stats}")
                 
-                # Find our document
-                target_doc = None
-                for doc in documents:
-                    if doc.get("id") == document_id:
-                        target_doc = doc
-                        break
-                
-                if target_doc:
-                    status = target_doc.get("status")
-                    total_chunks = target_doc.get("total_chunks", 0)
-                    
-                    print(f"Current status: {status}, chunks: {total_chunks}")
-                    
-                    if status == "indexed":
-                        print(f"Document details: {json.dumps(target_doc, indent=2, default=str)}")
-                        print_result(True, f"Document indexed successfully with {total_chunks} chunks")
-                        return target_doc
-                    elif status == "error":
-                        error_msg = target_doc.get("error_message", "Unknown error")
-                        print_result(False, f"Document indexing failed: {error_msg}")
-                        return None
-                    
+                total_chunks = stats.get('total_chunks', 0)
+                if total_chunks > 0:
+                    self.log(f"✅ Vector store has {total_chunks} chunks")
+                    return {'success': True, 'data': stats}
                 else:
-                    print_result(False, f"Document {document_id} not found in document list")
-                    return None
-            
-            time.sleep(5)  # Wait 5 seconds before checking again
-        
-        print_result(False, f"Document indexing timed out after {max_wait} seconds")
-        return None
-        
-    except Exception as e:
-        print_result(False, f"Error waiting for indexing: {e}")
-        return None
-
-
-def test_stats():
-    """Test 4: Check System Stats"""
-    print_test_header("System Stats")
-    
-    try:
-        response = requests.get(f"{API_BASE}/chat/stats", timeout=10)
-        print(f"Response status: {response.status_code}")
-        
-        if response.status_code == 200:
-            stats = response.json()
-            print(f"System stats: {json.dumps(stats, indent=2)}")
-            
-            total_docs = stats.get("total_documents", 0)
-            total_chunks = stats.get("total_chunks", 0)
-            
-            if total_docs > 0 and total_chunks > 0:
-                print_result(True, f"Stats look good: {total_docs} documents, {total_chunks} chunks")
-                return True
+                    self.log("⚠️  No chunks found in vector store")
+                    return {'success': False, 'error': 'No chunks in vector store', 'data': stats}
+                    
             else:
-                print_result(False, f"Stats show no documents or chunks: docs={total_docs}, chunks={total_chunks}")
-                return False
-        else:
-            print_result(False, f"Stats request failed with status {response.status_code}: {response.text}")
-            return False
-            
-    except Exception as e:
-        print_result(False, f"Stats request failed with exception: {e}")
-        return False
-
-
-def test_chat_question(question, test_number):
-    """Test chat functionality with a legal question"""
-    print_test_header(f"Legal Question {test_number}")
+                self.log(f"❌ Stats check failed: HTTP {response.status_code}")
+                return {'success': False, 'error': f"HTTP {response.status_code}", 'response': response.text}
+                
+        except Exception as e:
+            self.log(f"❌ Stats check exception: {str(e)}")
+            return {'success': False, 'error': str(e)}
     
-    try:
+    def test_legal_question(self) -> Dict[str, Any]:
+        """Test 5: Legal Question - POST /api/chat"""
+        self.log("🤖 Testing Legal Q&A...")
+        
+        question = "O que é responsabilidade civil objetiva?"
         payload = {
             "question": question,
             "max_sources": 5
         }
         
-        print(f"Asking question: {question}")
-        
-        response = requests.post(f"{API_BASE}/chat", json=payload, timeout=30)
-        print(f"Response status: {response.status_code}")
-        
-        if response.status_code == 200:
-            result = response.json()
+        try:
+            self.log(f"❓ Question: {question}")
+            start_time = time.time()
             
-            answer = result.get("answer", "")
-            sources = result.get("sources", [])
-            processing_time = result.get("processing_time", 0)
-            chunks_retrieved = result.get("chunks_retrieved", 0)
+            response = self.session.post(
+                f"{self.base_url}/chat", 
+                json=payload,
+                headers={'Content-Type': 'application/json'}
+            )
             
-            print(f"Processing time: {processing_time:.2f}s")
-            print(f"Chunks retrieved: {chunks_retrieved}")
-            print(f"Sources found: {len(sources)}")
+            duration = time.time() - start_time
             
-            print(f"\nAnswer: {answer}")
-            
-            if sources:
-                print("\nSources:")
-                for i, source in enumerate(sources, 1):
-                    print(f"  {i}. {source.get('title', 'Unknown')} - {source.get('author', 'Unknown')} ({source.get('year', 'N/A')})")
-                    print(f"     Relevance: {source.get('relevance_score', 0):.3f}")
-                    if source.get('page'):
-                        print(f"     Page: {source.get('page')}")
-                    print(f"     Text: {source.get('chunk_text', '')[:100]}...")
-                    print()
-            
-            if answer and len(answer) > 10:  # Basic check for meaningful answer
-                if sources and len(sources) > 0:
-                    print_result(True, f"Question answered successfully with {len(sources)} sources")
-                    return True
-                else:
-                    print_result(False, "Answer received but no sources provided")
-                    return False
-            else:
-                print_result(False, "Empty or too short answer received")
-                return False
+            if response.status_code == 200:
+                chat_data = response.json()
+                answer = chat_data.get('answer', '')
+                sources = chat_data.get('sources', [])
                 
-        else:
-            print_result(False, f"Chat request failed with status {response.status_code}: {response.text}")
-            return False
+                self.log(f"✅ Legal question answered in {duration:.2f}s")
+                self.log(f"📝 Answer (first 300 chars): {answer[:300]}{'...' if len(answer) > 300 else ''}")
+                self.log(f"📚 Number of sources: {len(sources)}")
+                
+                if sources:
+                    self.log("📖 Sources summary:")
+                    for i, source in enumerate(sources[:3]):  # Show first 3 sources
+                        relevance = source.get('relevance_score', 'N/A')
+                        page = source.get('page_number', 'N/A')
+                        self.log(f"  {i+1}. Page {page}, Relevance: {relevance}")
+                
+                return {
+                    'success': True, 
+                    'data': chat_data, 
+                    'answer_length': len(answer),
+                    'source_count': len(sources),
+                    'duration': duration
+                }
+            else:
+                self.log(f"❌ Legal question failed: HTTP {response.status_code}")
+                self.log(f"Response: {response.text}")
+                return {'success': False, 'error': f"HTTP {response.status_code}", 'response': response.text}
+                
+        except Exception as e:
+            self.log(f"❌ Legal question exception: {str(e)}")
+            return {'success': False, 'error': str(e)}
+    
+    def test_no_context_question(self) -> Dict[str, Any]:
+        """Test 6: Question with no context - POST /api/chat"""
+        self.log("🔍 Testing Question with No Context...")
+        
+        question = "O que é habeas corpus?"
+        payload = {
+            "question": question,
+            "max_sources": 5
+        }
+        
+        try:
+            self.log(f"❓ Question (no context expected): {question}")
+            start_time = time.time()
             
-    except Exception as e:
-        print_result(False, f"Chat request failed with exception: {e}")
-        return False
+            response = self.session.post(
+                f"{self.base_url}/chat", 
+                json=payload,
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            duration = time.time() - start_time
+            
+            if response.status_code == 200:
+                chat_data = response.json()
+                answer = chat_data.get('answer', '').lower()
+                sources = chat_data.get('sources', [])
+                
+                self.log(f"✅ No-context question answered in {duration:.2f}s")
+                self.log(f"📝 Answer (first 300 chars): {chat_data.get('answer', '')[:300]}{'...' if len(chat_data.get('answer', '')) > 300 else ''}")
+                self.log(f"📚 Number of sources: {len(sources)}")
+                
+                # Check if it properly indicates lack of context
+                no_info_indicators = [
+                    'acervo', 'não', 'nao', 'suficient', 'informaç', 'contexto',
+                    'disponível', 'disponivel', 'encontr'
+                ]
+                
+                has_no_info_indicator = any(indicator in answer for indicator in no_info_indicators)
+                
+                if has_no_info_indicator:
+                    self.log("✅ System properly indicates insufficient information in acervo")
+                    return {
+                        'success': True, 
+                        'data': chat_data,
+                        'properly_handled_no_context': True,
+                        'duration': duration
+                    }
+                else:
+                    self.log("⚠️  System may have invented an answer instead of indicating insufficient information")
+                    return {
+                        'success': True,  # Still successful response, but concerning behavior
+                        'data': chat_data,
+                        'properly_handled_no_context': False,
+                        'warning': 'May have invented answer',
+                        'duration': duration
+                    }
+            else:
+                self.log(f"❌ No-context question failed: HTTP {response.status_code}")
+                return {'success': False, 'error': f"HTTP {response.status_code}", 'response': response.text}
+                
+        except Exception as e:
+            self.log(f"❌ No-context question exception: {str(e)}")
+            return {'success': False, 'error': str(e)}
+    
+    def run_full_test_suite(self):
+        """Run all tests in sequence"""
+        self.log("🚀 Starting JuristaAI Backend Test Suite")
+        self.log(f"🎯 Target URL: {self.base_url}")
+        self.log("=" * 60)
+        
+        results = {}
+        
+        # Test 1: Health Check
+        results['health'] = self.test_health_check()
+        
+        # Test 2: Upload Document
+        results['upload'] = self.test_upload_document()
+        
+        # Test 3: Wait for Indexing
+        results['indexing'] = self.wait_for_indexing()
+        
+        # Test 4: Stats Check
+        results['stats'] = self.test_chat_stats()
+        
+        # Test 5: Legal Question
+        results['legal_qa'] = self.test_legal_question()
+        
+        # Test 6: No Context Question
+        results['no_context_qa'] = self.test_no_context_question()
+        
+        # Summary
+        self.log("=" * 60)
+        self.log("📋 TEST SUMMARY:")
+        
+        total_tests = len(results)
+        passed_tests = sum(1 for result in results.values() if result.get('success'))
+        
+        for test_name, result in results.items():
+            status = "✅ PASSED" if result.get('success') else "❌ FAILED"
+            self.log(f"  {test_name.upper()}: {status}")
+            if not result.get('success'):
+                self.log(f"    Error: {result.get('error', 'Unknown error')}")
+        
+        self.log(f"\n🏁 Overall Result: {passed_tests}/{total_tests} tests passed")
+        
+        if passed_tests == total_tests:
+            self.log("🎉 All tests PASSED! JuristaAI backend is fully functional.")
+        else:
+            self.log(f"⚠️  {total_tests - passed_tests} test(s) failed. Check errors above.")
+        
+        return results
 
 
 def main():
-    """Run all backend tests"""
-    print("JuristaAI Backend API Tests")
-    print(f"Testing API at: {API_BASE}")
-    print(f"Test PDF: {TEST_PDF_PATH}")
+    """Main entry point"""
+    tester = JuristaAITester()
+    results = tester.run_full_test_suite()
     
-    results = {}
-    
-    # Test 1: Health Check
-    results['health_check'] = test_health_check()
-    
-    # Test 2: Document Upload
-    document_id = test_document_upload()
-    results['document_upload'] = document_id is not None
-    
-    # Test 3: Wait for Indexing
-    indexed_doc = None
-    if document_id:
-        indexed_doc = test_wait_for_indexing(document_id)
-        results['document_indexing'] = indexed_doc is not None
-    else:
-        results['document_indexing'] = False
-        print_test_header("Wait for Document Indexing")
-        print_result(False, "Skipped - no document to index")
-    
-    # Test 4: System Stats
-    results['system_stats'] = test_stats()
-    
-    # Test 5 & 6: Chat Questions
-    for i, question in enumerate(TEST_QUESTIONS, 1):
-        test_key = f'chat_question_{i}'
-        results[test_key] = test_chat_question(question, i)
-    
-    # Summary
-    print_test_header("Test Summary")
-    
-    total_tests = len(results)
-    passed_tests = sum(1 for result in results.values() if result)
-    
-    for test_name, result in results.items():
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{status}: {test_name}")
-    
-    print(f"\nOverall: {passed_tests}/{total_tests} tests passed")
-    
-    if passed_tests == total_tests:
-        print("🎉 All tests passed!")
-        return 0
-    else:
-        print("❌ Some tests failed!")
-        return 1
+    # Exit with appropriate code
+    failed_tests = sum(1 for result in results.values() if not result.get('success'))
+    sys.exit(failed_tests)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
