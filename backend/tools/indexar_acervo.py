@@ -85,14 +85,23 @@ def hash_arquivo(path):
 # ============================================================
 
 def ler_pdf(path):
-    """Retorna texto completo E lista de paginas com numero."""
+    """Retorna texto completo E lista de paginas com numero e capitulo detectado."""
     texto = ""
     paginas = []
+    capitulo_atual = ""
     with fitz.open(path) as doc:
         for i, page in enumerate(doc):
             page_text = page.get_text()
             if page_text.strip():
-                paginas.append({"pagina": i + 1, "texto": page_text.strip()})
+                # Detectar capitulo na pagina
+                cap = detectar_capitulo(page_text)
+                if cap:
+                    capitulo_atual = cap
+                paginas.append({
+                    "pagina": i + 1,
+                    "texto": page_text.strip(),
+                    "capitulo": capitulo_atual,
+                })
                 texto += page_text
     return texto, paginas
 
@@ -105,6 +114,7 @@ def ler_epub(path):
     """Retorna texto completo E lista de capitulos com numero."""
     texto = ""
     paginas = []
+    capitulo_atual = ""
     book = epub.read_epub(path, options={'ignore_ncx': True})
     cap_num = 0
     for item in book.get_items():
@@ -113,9 +123,33 @@ def ler_epub(path):
             page_text = soup.get_text()
             if page_text.strip() and len(page_text.strip()) > 50:
                 cap_num += 1
-                paginas.append({"pagina": cap_num, "texto": page_text.strip()})
+                cap = detectar_capitulo(page_text)
+                if cap:
+                    capitulo_atual = cap
+                paginas.append({
+                    "pagina": cap_num,
+                    "texto": page_text.strip(),
+                    "capitulo": capitulo_atual,
+                })
                 texto += page_text
     return texto, paginas
+
+
+def detectar_capitulo(texto):
+    """Detecta titulo de capitulo no texto."""
+    patterns = [
+        r'(?:CAP[IÍ]TULO|CAPITULO)\s+([IVXLCDM]+[\s\-\.]*.*?)[\n\r]',
+        r'(?:CAP[IÍ]TULO|CAPITULO)\s+(\d+[\s\-\.]*.*?)[\n\r]',
+        r'(?:Cap[ií]tulo|Capitulo)\s+(\d+[\s\-\.]*.*?)[\n\r]',
+        r'(?:SE[CÇ][AÃ]O|SECAO)\s+([IVXLCDM]+[\s\-\.]*.*?)[\n\r]',
+        r'(?:T[IÍ]TULO|TITULO)\s+([IVXLCDM]+[\s\-\.]*.*?)[\n\r]',
+        r'(?:PARTE|Parte)\s+([IVXLCDM]+[\s\-\.]*.*?)[\n\r]',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, texto[:500])
+        if match:
+            return match.group(0).strip()[:100]
+    return ""
 
 
 # ============================================================
