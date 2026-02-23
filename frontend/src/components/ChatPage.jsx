@@ -214,6 +214,8 @@ export default function ChatPage() {
         question,
         session_id: sessionId.current,
         max_sources: 10,
+      }, {
+        timeout: 120000, // 2 minutos de timeout
       });
 
       const data = response.data;
