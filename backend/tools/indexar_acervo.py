@@ -369,7 +369,7 @@ for raiz, _, arquivos in os.walk(PASTA_LIVROS):
 # ============================================================
 
 if documentos:
-    logger.info(f"Indexando lote final de {len(documentos)} documentos...")
+    logger.info(f"Indexando lote final de {len(documentos)} paginas...")
     if os.path.exists(PASTA_INDICE):
         storage = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
         index = load_index_from_storage(storage)
