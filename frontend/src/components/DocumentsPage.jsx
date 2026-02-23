@@ -414,6 +414,52 @@ export default function DocumentsPage() {
           )}
         </div>
 
+        {/* Import package area */}
+        <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+          <PackageOpen className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium">Importar acervo pré-indexado</p>
+            <p className="text-[10px] text-muted-foreground">
+              ZIP gerado pelo script de indexação local
+            </p>
+          </div>
+          <input
+            ref={importInputRef}
+            type="file"
+            className="hidden"
+            accept=".zip"
+            onChange={handleImportPackage}
+            data-testid="import-input"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs flex-shrink-0"
+            onClick={() => importInputRef.current?.click()}
+            disabled={importing}
+            data-testid="import-button"
+          >
+            {importing ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <PackageOpen className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            {importing ? "Importando..." : "Importar ZIP"}
+          </Button>
+        </div>
+
+        {/* Import result message */}
+        {importResult && (
+          <div className={`p-3 rounded-lg text-xs ${
+            importResult.success 
+              ? "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-200 dark:border-emerald-800"
+              : "bg-red-50 text-red-800 border border-red-200 dark:bg-red-950/20 dark:text-red-200 dark:border-red-800"
+          }`}>
+            {importResult.success ? <CheckCircle2 className="w-3.5 h-3.5 inline mr-1.5" /> : <XCircle className="w-3.5 h-3.5 inline mr-1.5" />}
+            {importResult.message}
+          </div>
+        )}
+
         {/* Search and count */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
