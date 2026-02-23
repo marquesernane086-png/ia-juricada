@@ -11,8 +11,10 @@ requests>=2.31.0
 # AI/ML Dependencies
 sentence-transformers>=3.0.0
 chromadb>=0.5.0
-openai>=1.30.0
+openai==1.99.9
 tiktoken>=0.7.0
+llama-index>=0.14.0
+llama-index-embeddings-huggingface>=0.6.0
 
 # Document Processing
 PyMuPDF>=1.24.0
@@ -25,3 +27,4 @@ langchain-text-splitters>=0.2.0
 
 # Utilities
 aiofiles>=24.1.0
+emergentintegrations==0.1.0
