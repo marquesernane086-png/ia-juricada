@@ -111,15 +111,17 @@ async def health_check():
 
 
 # Import and register route modules
-from routes import document_routes, chat_routes
+from routes import document_routes, chat_routes, import_routes
 
 # Set database references
 document_routes.set_db(db)
 chat_routes.set_db(db)
+import_routes.set_db(db)
 
 # Include route modules
 api_router.include_router(document_routes.router)
 api_router.include_router(chat_routes.router)
+api_router.include_router(import_routes.router)
 
 # Include the API router
 app.include_router(api_router)
