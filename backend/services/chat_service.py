@@ -101,7 +101,7 @@ async def process_question(
     # =========================================================
     # STEP 3: LEGAL REASONING AGENT
     # =========================================================
-    logger.info("[3/4] Legal Reasoning Agent: generating response...")
+    logger.info("[3/5] Legal Reasoning Agent: generating response...")
     answer = reasoning_service.generate_response(
         question=question,
         search_results=filtered_results,
