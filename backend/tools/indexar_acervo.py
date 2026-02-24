@@ -633,30 +633,43 @@ logger.info("=" * 60)
 
 
 def salvar_lote(docs):
-    """Salva um lote de documentos no indice — MANTENDO EM MEMORIA."""
+    """Insere chunks no Qdrant (rapido, sem reload)."""
     global documentos_pendentes, _index_memoria
     if not docs:
         return
 
-    # Inserir no indice em memoria (rapido!)
     for d in docs:
         _index_memoria.insert(d)
 
-    # Persistir em disco
-    _index_memoria.storage_context.persist(persist_dir=PASTA_INDICE)
     documentos_pendentes = []
 
 
-# Carregar indice UMA VEZ na memoria
-logger.info("Carregando indice na memoria (uma unica vez)...")
-if os.path.exists(os.path.join(PASTA_INDICE, "docstore.json")):
-    _storage = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
-    _index_memoria = load_index_from_storage(_storage)
-    logger.info(f"Indice carregado: {len(_index_memoria.docstore.docs)} chunks existentes")
-else:
-    _index_memoria = VectorStoreIndex.from_documents([])
-    _index_memoria.storage_context.persist(persist_dir=PASTA_INDICE)
-    logger.info("Novo indice criado")
+# Inicializar Qdrant local (SEM DOCKER)
+logger.info("Inicializando Qdrant local...")
+try:
+    from qdrant_client import QdrantClient
+    from llama_index.vector_stores.qdrant import QdrantVectorStore
+
+    QDRANT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qdrant_data")
+    os.makedirs(QDRANT_DIR, exist_ok=True)
+
+    _qdrant_client = QdrantClient(path=QDRANT_DIR)
+    _vector_store = QdrantVectorStore(client=_qdrant_client, collection_name="jurista_legal_docs")
+    _storage_ctx = StorageContext.from_defaults(vector_store=_vector_store)
+
+    # Carregar ou criar indice
+    _index_memoria = VectorStoreIndex.from_documents([], storage_context=_storage_ctx)
+    logger.info(f"Qdrant pronto em: {QDRANT_DIR}")
+
+except ImportError:
+    logger.warning("qdrant-client nao instalado. Usando LlamaIndex padrao (mais lento).")
+    logger.warning("Instale com: pip install qdrant-client llama-index-vector-stores-qdrant")
+    if os.path.exists(os.path.join(PASTA_INDICE, "docstore.json")):
+        _storage_ctx = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
+        _index_memoria = load_index_from_storage(_storage_ctx)
+    else:
+        _index_memoria = VectorStoreIndex.from_documents([])
+        _index_memoria.storage_context.persist(persist_dir=PASTA_INDICE)
 
 
 # Processar cada livro
