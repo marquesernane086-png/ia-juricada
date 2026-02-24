@@ -51,31 +51,27 @@ async def process_question(
     )
     
     # =========================================================
-    # STEP 1: VECTOR RETRIEVAL
+    # STEP 1: VECTOR RETRIEVAL (BROAD RECALL)
     # =========================================================
-    logger.info("[1/5] Vector Retrieval...")
+    BROAD_RECALL = 40
+    logger.info(f"[1/6] Vector Retrieval (top {BROAD_RECALL})...")
     search_results = vector_service.search(
         query=enhanced_query,
-        n_results=max_sources,
+        n_results=BROAD_RECALL,
         where_filter=where_filter
     )
     
-    # Filter low-relevance results
-    MIN_RELEVANCE_SCORE = 0.20
-    filtered_results = [r for r in search_results if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
-    logger.info(f"  Retrieved: {len(search_results)} → Filtered: {len(filtered_results)}")
+    raw_results = [r for r in search_results if r.get("score", 0) >= 0.10]
+    logger.info(f"  Retrieved: {len(search_results)} → Pre-filtered: {len(raw_results)}")
     
-    if not filtered_results:
+    if not raw_results:
         processing_time = time.time() - start_time
         return ChatResponse(
             answer=(
                 "## RELATÓRIO\n\n"
                 "Não foram encontradas fontes doutrinárias indexadas no acervo para responder "
-                "a esta questão. Para que o JuristaAI possa fornecer fundamentação doutrinária "
-                "adequada, é necessário que livros jurídicos relevantes ao tema sejam indexados "
-                "no sistema.\n\n"
-                "**Recomendação:** Faça o upload de obras doutrinárias relacionadas ao tema "
-                "consultado para habilitar a pesquisa doutrinária."
+                "a esta questão.\n\n"
+                "**Recomendação:** Faça o upload de obras doutrinárias relacionadas."
             ),
             sources=[],
             session_id=session_id,
@@ -85,16 +81,24 @@ async def process_question(
         )
     
     # =========================================================
-    # STEP 2: DOCTRINE GRAPH → SYNTHESIZER
+    # STEP 2: LEGAL RE-RANKER
     # =========================================================
-    # 2a: Build doctrinal blocks
-    logger.info("[2/5] Doctrine Graph + Synthesizer...")
+    FINAL_CHUNKS = 12
+    logger.info(f"[2/6] Legal Re-Ranker ({len(raw_results)} → {FINAL_CHUNKS})...")
+    filtered_results = legal_reranker.rerank(
+        raw_results=raw_results,
+        legal_issues=legal_issues,
+        max_output=FINAL_CHUNKS,
+    )
+    
+    # =========================================================
+    # STEP 3: DOCTRINE GRAPH → SYNTHESIZER
+    # =========================================================
+    logger.info("[3/6] Doctrine Graph + Synthesizer...")
     doctrinal_blocks = doctrine_graph.build_doctrinal_blocks(filtered_results)
     
-    # 2b: Synthesize doctrinal positions (LOCAL, no LLM)
     synthesis = doctrine_synthesizer.synthesize(doctrinal_blocks, legal_issues)
     
-    # 2c: Also run comparator for minority/divergence detection
     doctrine_analysis = doctrine_comparator.analyze_doctrine(filtered_results)
     comparator_context = doctrine_comparator.build_doctrine_context(doctrine_analysis)
     
