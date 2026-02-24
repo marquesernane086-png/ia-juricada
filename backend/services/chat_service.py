@@ -12,7 +12,7 @@ import time
 import logging
 from typing import Dict, List, Optional
 
-from services import vector_service, reasoning_service, citation_guardian, doctrine_comparator
+from services import vector_service, reasoning_service, citation_guardian, doctrine_comparator, legal_issue_extractor
 from models.schemas import ChatResponse, SourceReference
 
 logger = logging.getLogger(__name__)
