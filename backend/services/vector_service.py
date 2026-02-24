@@ -137,13 +137,28 @@ def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None)
         meta = node.metadata or {}
         score = node.score if node.score is not None else 0.0
 
+        # Extract author/title from combined fields if needed
+        author = meta.get("author", meta.get("autor", ""))
+        title = meta.get("title", meta.get("arquivo", ""))
+        year = meta.get("year", meta.get("ano", ""))
+
+        # Parse "Author, Year. Title" format from title field
+        if not author and title:
+            import re
+            match = re.match(r'^([^,]+),\s*(\d{4})\.\s*(.+)$', title)
+            if match:
+                author = match.group(1).strip()
+                if not year:
+                    year = int(match.group(2))
+                title = match.group(3).strip()
+
         formatted.append({
             "text": node.get_text(),
             "metadata": {
                 "doc_id": meta.get("doc_id", meta.get("hash", "")),
-                "author": meta.get("author", meta.get("autor", "")),
-                "title": meta.get("title", meta.get("arquivo", "")),
-                "year": meta.get("year", meta.get("ano", "")),
+                "author": author,
+                "title": title,
+                "year": year,
                 "edition": meta.get("edition", meta.get("edicao", "")),
                 "legal_subject": meta.get("legal_subject", meta.get("materia", "")),
                 "legal_institute": meta.get("legal_institute", ""),
