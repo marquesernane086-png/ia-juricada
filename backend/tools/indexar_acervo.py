@@ -497,20 +497,20 @@ def criar_chunks_pagina(texto_pagina, metadados, pagina_num, capitulo):
         return chunks
 
     # Dividir em chunks menores
+    avanco = CHUNK_SIZE - CHUNK_OVERLAP  # avancar 824 chars por chunk
     inicio = 0
     while inicio < len(texto_pagina):
         fim = min(inicio + CHUNK_SIZE, len(texto_pagina))
 
         # Tentar cortar em ponto natural (final de frase)
         if fim < len(texto_pagina):
-            # Procurar ". " ou "\n" proximo do fim
             melhor_corte = -1
-            for sep in [". ", ".\n", "\n\n", "\n", "; ", ", "]:
-                pos = texto_pagina.rfind(sep, inicio + CHUNK_SIZE // 2, fim + 50)
+            for sep in [". ", ".\n", "\n\n", "\n", "; "]:
+                pos = texto_pagina.rfind(sep, inicio + avanco // 2, fim + 50)
                 if pos > melhor_corte:
                     melhor_corte = pos + len(sep)
 
-            if melhor_corte > inicio:
+            if melhor_corte > inicio + avanco // 2:
                 fim = melhor_corte
 
         trecho = texto_pagina[inicio:fim].strip()
@@ -518,8 +518,8 @@ def criar_chunks_pagina(texto_pagina, metadados, pagina_num, capitulo):
             meta = {**metadados, "page": pagina_num, "pagina": pagina_num, "capitulo": capitulo}
             chunks.append(Document(text=trecho, metadata=meta))
 
-        # Proximo chunk com overlap
-        inicio = max(inicio + 1, fim - CHUNK_OVERLAP)
+        # Avancar posicao fixa (nunca menos que avanco)
+        inicio += avanco
 
     return chunks
 
