@@ -34,6 +34,7 @@ try:
     from llama_index.core import load_index_from_storage
     from llama_index.core.node_parser import SentenceSplitter
     from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    from legal_source_classifier import classificar_fonte
 except ImportError as e:
     print(f"\nDependencia faltando: {e}")
     print("Execute: pip install -r requirements_local.txt")
