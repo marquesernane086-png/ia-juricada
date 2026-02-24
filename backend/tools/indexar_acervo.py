@@ -488,6 +488,51 @@ def detectar_materia(nome_arquivo, texto_amostra, caminho):
 
 
 # ============================================================
+# DETECCAO DE POSICAO DOUTRINARIA
+# ============================================================
+
+SINAIS_POSICAO = {
+    "majoritaria": [
+        "maioria da doutrina", "entendimento dominante", "posição consolidada",
+        "doutrina majoritária", "corrente majoritária", "pacífico na doutrina",
+        "entendimento pacífico", "posição predominante", "a doutrina é unânime",
+    ],
+    "minoritaria": [
+        "parte da doutrina", "corrente minoritária", "há quem sustente",
+        "posição minoritária", "alguns autores", "entendimento isolado",
+    ],
+    "critica": [
+        "não concordamos", "equivoca-se", "merece crítica",
+        "data venia", "com a devida vênia", "discordamos",
+        "não nos parece correto", "criticável",
+    ],
+    "historica": [
+        "historicamente", "direito romano", "tradicionalmente",
+        "evolução histórica", "origem histórica", "no passado",
+    ],
+}
+
+
+def detectar_posicao_doutrinaria(texto):
+    """Detecta posicao doutrinaria do trecho: majoritaria, minoritaria, critica, historica, conceito, indefinida."""
+    texto_lower = texto.lower()
+    scores = {}
+    for posicao, sinais in SINAIS_POSICAO.items():
+        count = sum(1 for s in sinais if s in texto_lower)
+        if count > 0:
+            scores[posicao] = count
+
+    if not scores:
+        conceito_sinais = ["conceito", "define-se", "entende-se por", "consiste em",
+                          "trata-se de", "pode ser definido"]
+        if any(s in texto_lower for s in conceito_sinais):
+            return "conceito"
+        return "indefinida"
+
+    return max(scores, key=scores.get)
+
+
+# ============================================================
 # CHUNKING INTELIGENTE
 # ============================================================
 
