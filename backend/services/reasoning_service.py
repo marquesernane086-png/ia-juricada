@@ -202,15 +202,13 @@ def generate_response(
     
     client = get_openai_client()
     
-    # Apply temporal weighting
-    weighted_results = apply_temporal_weighting(search_results.copy())
-    
-    # Build context
-    context = build_context(weighted_results)
-    
-    # Append doctrine analysis context
+    # Use structured doctrine context if provided (from Doctrine Graph Layer)
+    # Otherwise fall back to flat chunk context
     if doctrine_context:
-        context += "\n" + doctrine_context
+        context = doctrine_context
+    else:
+        weighted_results = apply_temporal_weighting(search_results.copy())
+        context = build_context(weighted_results)
     
     # Build user message
     user_message = f"""PERGUNTA JURÍDICA:
