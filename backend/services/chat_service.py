@@ -52,7 +52,7 @@ async def process_question(
     # =========================================================
     # STEP 1: VECTOR RETRIEVAL
     # =========================================================
-    logger.info(f"[1/5] Vector Retrieval...")
+    logger.info("[1/5] Vector Retrieval...")
     search_results = vector_service.search(
         query=enhanced_query,
         n_results=max_sources,
