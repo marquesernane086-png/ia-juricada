@@ -1,18 +1,19 @@
-"""Chat Service - Orchestrates the full RAG pipeline for legal questions.
+"""Chat Service - Orchestrates the full Legal Reasoning Pipeline.
 
 Pipeline:
-  1. Vector Retrieval (vector_service)
-  2. Doctrine Comparator (doctrine_comparator)  
-  3. Legal Reasoning Agent (reasoning_service)
-  4. Citation Guardian (citation_guardian)
-  5. Final Response
+  0. Legal Issue Extractor   → decompose question
+  1. Vector Retrieval        → broad recall (top 40)
+  1.5 Legal Re-Ranker        → curated top 12
+  2. Doctrine Graph + Synth  → doctrinal blocks
+  3. Legal Applicator        → LLM parecer
+  4. Citation Guardian        → validate citations
 """
 
 import time
 import logging
 from typing import Dict, List, Optional
 
-from services import vector_service, reasoning_service, citation_guardian, doctrine_comparator, legal_issue_extractor, doctrine_graph, doctrine_synthesizer
+from services import vector_service, reasoning_service, citation_guardian, doctrine_comparator, legal_issue_extractor, doctrine_graph, doctrine_synthesizer, legal_reranker
 from models.schemas import ChatResponse, SourceReference
 
 logger = logging.getLogger(__name__)
