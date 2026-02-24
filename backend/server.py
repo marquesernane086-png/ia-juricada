@@ -125,6 +125,21 @@ async def download_indexador():
     )
 
 
+@api_router.get("/download/documentacao")
+async def download_documentacao():
+    """Download the full project documentation."""
+    from fastapi.responses import FileResponse
+    doc_path = ROOT_DIR / "data" / "uploads" / "JuristaAI_Documentacao_Completa.md"
+    if not doc_path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Documentation not found")
+    return FileResponse(
+        path=str(doc_path),
+        filename="JuristaAI_Documentacao_Completa.md",
+        media_type="text/markdown"
+    )
+
+
 # Import and register route modules
 from routes import document_routes, chat_routes, import_routes
 
