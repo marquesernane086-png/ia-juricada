@@ -49,7 +49,7 @@ PASTA_INDICE = "indice"
 ARQUIVO_CONTROLE = "controle_index.json"
 CHUNK_SIZE = 1024        # tamanho ideal do chunk em caracteres
 CHUNK_OVERLAP = 200      # sobreposicao entre chunks
-LOTE_SALVAR = 200        # salvar indice a cada N chunks
+LOTE_SALVAR = 5000        # salvar em disco a cada N chunks (insercao em memoria e rapida)
 
 # ============================================================
 # SETUP
