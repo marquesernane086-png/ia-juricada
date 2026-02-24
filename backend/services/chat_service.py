@@ -128,7 +128,7 @@ async def process_question(
     # =========================================================
     # STEP 4: CITATION GUARDIAN
     # =========================================================
-    logger.info("[4/5] Citation Guardian: validating citations...")
+    logger.info("[5/6] Citation Guardian: validating citations...")
     validated_answer, citation_report = citation_guardian.validate_response(
         response_text=answer,
         sources=filtered_results
