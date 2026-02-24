@@ -594,6 +594,8 @@ def criar_chunks_pagina(texto_pagina, metadados, pagina_num, capitulo):
                 "posicao_doutrinaria": posicao,
                 "fonte_normativa": fonte["fonte_normativa"],
                 "orgao_julgador": fonte["orgao_julgador"],
+                "artigo_referenciado": fonte["artigo_referenciado"],
+                "peso_normativo": fonte["peso_normativo"],
             }
             chunks.append(Document(text=trecho, metadata=meta))
 
