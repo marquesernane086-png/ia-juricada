@@ -43,7 +43,7 @@ except ImportError as e:
 # CONFIGURACAO - AJUSTE AQUI
 # ============================================================
 
-PASTA_LIVROS = r"C:\Users\joaop\OneDrive\IA DIREITO"
+PASTA_LIVROS = r"C:\Users\joaop\OneDrive\Faculdade UNESA\LIVROS"
 PASTA_INDICE = "indice"
 ARQUIVO_CONTROLE = "controle_index.json"
 CHUNK_SIZE = 1024        # tamanho ideal do chunk em caracteres
