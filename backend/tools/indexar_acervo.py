@@ -1,12 +1,18 @@
 """
-JuristaAI - Script de Indexacao Local (Producao)
-=================================================
+JuristaAI - Script de Indexacao Local (DEFINITIVO)
+====================================================
 Processa livros juridicos (PDF/EPUB) e cria indice vetorial para o JuristaAI.
+
+Recursos:
+- Extrai autor/titulo dos metadados internos do PDF
+- Chunking inteligente (~1000 chars) com separadores juridicos
+- Preserva numero da pagina em cada chunk
+- Detecta capitulos automaticamente
+- Checkpoint: nao repete arquivos ja indexados
+- Lotes incrementais: salva progresso a cada livro
 
 Uso:
     python indexar_acervo.py
-
-Compativel com o servidor JuristaAI - gera pasta "indice" para importacao.
 """
 
 import os
@@ -16,6 +22,7 @@ import hashlib
 import re
 import time
 import logging
+import uuid
 from pathlib import Path
 from datetime import datetime
 
@@ -25,6 +32,7 @@ try:
     from bs4 import BeautifulSoup
     from llama_index.core import Document, VectorStoreIndex, StorageContext, Settings
     from llama_index.core import load_index_from_storage
+    from llama_index.core.node_parser import SentenceSplitter
     from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 except ImportError as e:
     print(f"\nDependencia faltando: {e}")
@@ -32,26 +40,48 @@ except ImportError as e:
     sys.exit(1)
 
 # ============================================================
-# CONFIGURACAO
+# CONFIGURACAO - AJUSTE AQUI
 # ============================================================
 
 PASTA_LIVROS = r"C:\Users\joaop\OneDrive\IA DIREITO"
 PASTA_INDICE = "indice"
 ARQUIVO_CONTROLE = "controle_index.json"
+CHUNK_SIZE = 1024        # tamanho ideal do chunk em caracteres
+CHUNK_OVERLAP = 200      # sobreposicao entre chunks
+LOTE_SALVAR = 200        # salvar indice a cada N chunks
+
+# ============================================================
+# SETUP
+# ============================================================
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S"
+    datefmt="%H:%M:%S",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("indexacao.log", encoding="utf-8"),
+    ]
 )
 logger = logging.getLogger("JuristaAI")
 
-# Configurar embedding model
-logger.info("Carregando modelo de embeddings...")
+logger.info("Carregando modelo de embeddings (primeira vez baixa ~500MB)...")
 Settings.embed_model = HuggingFaceEmbedding(
     model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 )
 logger.info("Modelo carregado!")
+
+# Chunker com separadores juridicos
+SEPARADORES_JURIDICOS = [
+    "\n\nCAPÍTULO", "\nCAPÍTULO", "\n\nCAPITULO", "\nCAPITULO",
+    "\n\nSEÇÃO", "\nSEÇÃO", "\n\nSECAO", "\nSECAO",
+    "\n\nTÍTULO", "\nTÍTULO", "\n\nTITULO", "\nTITULO",
+    "\n\nArt.", "\nArt.",
+    "\n\n§", "\n§",
+    "\n\nSumário:", "\nSumário:",
+    "\n\n", "\n",
+    ". ", " ",
+]
 
 # ============================================================
 # CONTROLE DE INDEXACAO
@@ -73,82 +103,131 @@ def hash_arquivo(path):
     sha = hashlib.sha256()
     with open(path, "rb") as f:
         while True:
-            chunk = f.read(8192)
-            if not chunk:
+            bloco = f.read(8192)
+            if not bloco:
                 break
-            sha.update(chunk)
+            sha.update(bloco)
     return sha.hexdigest()
 
 
 # ============================================================
-# LEITURA PDF
+# EXTRACAO DE TEXTO - PDF
 # ============================================================
 
 def ler_pdf(path):
-    """Retorna texto completo E lista de paginas com numero e capitulo detectado."""
-    texto = ""
+    """Extrai texto pagina por pagina + metadados internos do PDF."""
+    doc = fitz.open(path)
+    meta_pdf = doc.metadata or {}
+
+    # Metadados internos do PDF
+    autor_pdf = (meta_pdf.get("author") or "").strip()
+    titulo_pdf = (meta_pdf.get("title") or "").strip()
+
     paginas = []
     capitulo_atual = ""
-    with fitz.open(path) as doc:
-        for i, page in enumerate(doc):
-            page_text = page.get_text()
-            if page_text.strip():
-                # Detectar capitulo na pagina
-                cap = detectar_capitulo(page_text)
-                if cap:
-                    capitulo_atual = cap
-                paginas.append({
-                    "pagina": i + 1,
-                    "texto": page_text.strip(),
-                    "capitulo": capitulo_atual,
-                })
-                texto += page_text
-    return texto, paginas
+
+    for i in range(len(doc)):
+        page = doc[i]
+        texto = page.get_text("text")
+        if not texto or len(texto.strip()) < 30:
+            continue
+
+        # Detectar capitulo
+        cap = detectar_capitulo(texto)
+        if cap:
+            capitulo_atual = cap
+
+        paginas.append({
+            "pagina": i + 1,
+            "texto": texto.strip(),
+            "capitulo": capitulo_atual,
+        })
+
+    total_paginas = len(doc)
+    doc.close()
+
+    # Texto completo (para detectar materia/ano)
+    texto_completo = "\n".join(p["texto"] for p in paginas[:20])  # primeiras 20 pags
+
+    return paginas, {
+        "autor_pdf": autor_pdf,
+        "titulo_pdf": titulo_pdf,
+        "total_paginas": total_paginas,
+        "texto_amostra": texto_completo,
+    }
 
 
 # ============================================================
-# LEITURA EPUB
+# EXTRACAO DE TEXTO - EPUB
 # ============================================================
 
 def ler_epub(path):
-    """Retorna texto completo E lista de capitulos com numero."""
-    texto = ""
+    """Extrai texto capitulo por capitulo + metadados do EPUB."""
+    book = epub.read_epub(path, options={'ignore_ncx': True})
+
+    # Metadados
+    autor_epub = ""
+    titulo_epub = ""
+
+    title_meta = book.get_metadata('DC', 'title')
+    if title_meta and title_meta[0]:
+        titulo_epub = title_meta[0][0] or ""
+
+    author_meta = book.get_metadata('DC', 'creator')
+    if author_meta and author_meta[0]:
+        autor_epub = author_meta[0][0] or ""
+
     paginas = []
     capitulo_atual = ""
-    book = epub.read_epub(path, options={'ignore_ncx': True})
     cap_num = 0
+
     for item in book.get_items():
         if item.get_type() == 9:
             soup = BeautifulSoup(item.get_content(), "html.parser")
-            page_text = soup.get_text()
-            if page_text.strip() and len(page_text.strip()) > 50:
-                cap_num += 1
-                cap = detectar_capitulo(page_text)
-                if cap:
-                    capitulo_atual = cap
-                paginas.append({
-                    "pagina": cap_num,
-                    "texto": page_text.strip(),
-                    "capitulo": capitulo_atual,
-                })
-                texto += page_text
-    return texto, paginas
+            texto = soup.get_text(separator="\n", strip=True)
+            if not texto or len(texto.strip()) < 50:
+                continue
 
+            cap_num += 1
+            cap = detectar_capitulo(texto)
+            if cap:
+                capitulo_atual = cap
+
+            paginas.append({
+                "pagina": cap_num,
+                "texto": texto.strip(),
+                "capitulo": capitulo_atual,
+            })
+
+    texto_completo = "\n".join(p["texto"] for p in paginas[:10])
+
+    return paginas, {
+        "autor_pdf": autor_epub,
+        "titulo_pdf": titulo_epub,
+        "total_paginas": cap_num,
+        "texto_amostra": texto_completo,
+    }
+
+
+# ============================================================
+# DETECCAO DE CAPITULO
+# ============================================================
 
 def detectar_capitulo(texto):
-    """Detecta titulo de capitulo no texto."""
+    """Detecta titulo de capitulo nas primeiras linhas do texto."""
+    primeiras_linhas = texto[:500]
     patterns = [
-        r'(?:CAP[IÍ]TULO|CAPITULO)\s+([IVXLCDM]+[\s\-\.]*.*?)[\n\r]',
-        r'(?:CAP[IÍ]TULO|CAPITULO)\s+(\d+[\s\-\.]*.*?)[\n\r]',
-        r'(?:Cap[ií]tulo|Capitulo)\s+(\d+[\s\-\.]*.*?)[\n\r]',
-        r'(?:SE[CÇ][AÃ]O|SECAO)\s+([IVXLCDM]+[\s\-\.]*.*?)[\n\r]',
-        r'(?:T[IÍ]TULO|TITULO)\s+([IVXLCDM]+[\s\-\.]*.*?)[\n\r]',
-        r'(?:PARTE|Parte)\s+([IVXLCDM]+[\s\-\.]*.*?)[\n\r]',
+        r'(CAP[IÍ]TULO\s+[IVXLCDM\d]+[\s\.\-–:]*[^\n]{0,80})',
+        r'(Cap[ií]tulo\s+[IVXLCDM\d]+[\s\.\-–:]*[^\n]{0,80})',
+        r'(SE[CÇ][AÃ]O\s+[IVXLCDM\d]+[\s\.\-–:]*[^\n]{0,80})',
+        r'(T[IÍ]TULO\s+[IVXLCDM\d]+[\s\.\-–:]*[^\n]{0,80})',
+        r'(PARTE\s+[IVXLCDM\d]+[\s\.\-–:]*[^\n]{0,80})',
+        r'(LIVRO\s+[IVXLCDM\d]+[\s\.\-–:]*[^\n]{0,80})',
     ]
     for pattern in patterns:
-        match = re.search(pattern, texto[:500])
+        match = re.search(pattern, primeiras_linhas)
         if match:
-            return match.group(0).strip()[:100]
+            return match.group(1).strip()[:120]
     return ""
 
 
@@ -156,124 +235,141 @@ def detectar_capitulo(texto):
 # EXTRACAO DE METADADOS
 # ============================================================
 
-def extrair_ano(nome, texto=""):
-    """Extrai ano do nome do arquivo ou do texto."""
-    # Primeiro tenta no nome do arquivo
-    match = re.search(r"(19|20)\d{2}", nome)
-    if match:
-        return int(match.group())
+def extrair_autor(nome_arquivo, meta_pdf, texto_amostra):
+    """Extrai autor: 1) metadados PDF, 2) nome do arquivo, 3) texto."""
+    # 1. Metadados internos do PDF
+    autor = meta_pdf.get("autor_pdf", "")
+    if autor and len(autor) > 2 and autor.lower() not in ["unknown", "admin", "user", "microsoft"]:
+        return autor.strip()
 
-    # Depois tenta no texto (primeiros 3000 chars)
-    amostra = texto[:3000]
-    patterns = [
-        r'(?:edicao|ed\.)\s*(?:de\s+)?((?:19|20)\d{2})',
-        r'(?:copyright|©)\s*((?:19|20)\d{2})',
-        r'((?:19|20)\d{2})\s*(?:by|por)',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, amostra, re.IGNORECASE)
-        if match:
-            return int(match.group(1))
-
-    return 0
-
-
-def extrair_autor(nome_arquivo, texto=""):
-    """Tenta extrair o autor do nome do arquivo ou do texto."""
+    # 2. Nome do arquivo: "Autor - Titulo (Ano).pdf"
     nome = Path(nome_arquivo).stem
-
-    # Padrao: "Autor - Titulo" ou "Titulo - Autor"
     partes = re.split(r'\s*[-–—]\s*', nome, maxsplit=1)
-    if len(partes) == 2:
-        # Heuristica: se a primeira parte tem menos de 40 chars, provavelmente e o autor
-        if len(partes[0]) < 40:
-            return partes[0].strip()
+    if len(partes) == 2 and len(partes[0]) < 50:
+        candidato = partes[0].strip()
+        # Verificar se parece nome de pessoa (tem pelo menos 2 palavras)
+        if len(candidato.split()) >= 2:
+            return candidato
 
-    # Tenta extrair do texto (primeiras paginas)
-    amostra = texto[:2000]
+    # 3. Buscar no texto (primeiras paginas)
     patterns = [
-        r'(?:autor|by|por)[:\s]+([A-Z][a-zA-Z\s\.]+)',
+        r'(?:Autor|Author|Por|By)[:\s]+([A-ZÀ-Ú][a-zà-ú]+ [A-ZÀ-Ú][^\n]{3,50})',
+        r'^([A-ZÀ-Ú][a-zà-ú]+ (?:de |do |da |dos |das )?[A-ZÀ-Ú][a-zà-ú]+(?:\s[A-ZÀ-Ú][a-zà-ú]+)?)\s*\n',
     ]
     for pattern in patterns:
-        match = re.search(pattern, amostra)
+        match = re.search(pattern, texto_amostra[:2000], re.MULTILINE)
         if match:
             return match.group(1).strip()[:60]
 
     return ""
 
 
-def extrair_edicao(nome_arquivo, texto=""):
-    """Tenta extrair edicao."""
-    amostra = (nome_arquivo + " " + texto[:2000])
+def extrair_titulo(nome_arquivo, meta_pdf):
+    """Extrai titulo: 1) metadados PDF, 2) nome do arquivo."""
+    titulo = meta_pdf.get("titulo_pdf", "")
+    if titulo and len(titulo) > 3:
+        return titulo.strip()
+
+    nome = Path(nome_arquivo).stem
+    # Remover ano entre parenteses
+    nome = re.sub(r'\s*[\(\[]\d{4}[\)\]]', '', nome)
+    # Se tem "Autor - Titulo", pegar o titulo
+    partes = re.split(r'\s*[-–—]\s*', nome, maxsplit=1)
+    if len(partes) == 2:
+        return partes[1].strip()
+
+    return nome.strip()
+
+
+def extrair_ano(nome_arquivo, meta_pdf, texto_amostra):
+    """Extrai ano de publicacao."""
+    # 1. Nome do arquivo
+    match = re.search(r'[\(\[]?((?:19|20)\d{2})[\)\]]?', nome_arquivo)
+    if match:
+        return int(match.group(1))
+
+    # 2. Texto (primeiras paginas)
     patterns = [
-        r'(\d+)[aª°]?\s*(?:edicao|edicão|ed\.)',
-        r'(?:edicao|edicão|ed\.)\s*(\d+)',
+        r'(?:edi[cç][aã]o|ed\.)\s*(?:de\s+)?((?:19|20)\d{2})',
+        r'(?:copyright|©)\s*((?:19|20)\d{2})',
+        r'((?:19|20)\d{2})\s*(?:by|por|Editora)',
     ]
     for pattern in patterns:
-        match = re.search(pattern, amostra, re.IGNORECASE)
+        match = re.search(pattern, texto_amostra[:3000], re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+
+    return 0
+
+
+def extrair_edicao(nome_arquivo, texto_amostra):
+    """Extrai numero da edicao."""
+    texto = nome_arquivo + " " + texto_amostra[:2000]
+    patterns = [
+        r'(\d+)[aªº°]?\s*(?:edi[cç][aã]o|ed\.)',
+        r'(?:edi[cç][aã]o|ed\.)\s*(\d+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, texto, re.IGNORECASE)
         if match:
             return f"{match.group(1)}a edicao"
     return ""
 
 
-def detectar_materia(nome, texto, caminho):
-    """Detecta a materia juridica automaticamente."""
-    base = (nome + " " + caminho + " " + texto[:3000]).lower()
+def detectar_materia(nome_arquivo, texto_amostra, caminho):
+    """Detecta materia juridica automaticamente."""
+    base = (nome_arquivo + " " + caminho + " " + texto_amostra[:5000]).lower()
 
     materias = {
         "Direito Civil": [
-            "civil", "obrigacoes", "obrigações", "contratos", "responsabilidade civil",
-            "familia", "família", "sucessoes", "sucessões", "direitos reais",
-            "pessoa natural", "pessoa juridica", "negocio juridico"
+            "direito civil", "obrigações", "obrigacoes", "contratos",
+            "responsabilidade civil", "família", "familia", "sucessões",
+            "sucessoes", "direitos reais", "pessoa natural", "negócio jurídico",
+            "negocio juridico", "posse", "propriedade",
         ],
         "Direito Penal": [
-            "penal", "crime", "pena", "criminologia", "delito",
-            "tipicidade", "antijuridicidade", "culpabilidade"
+            "direito penal", "crime", "criminologia", "delito",
+            "tipicidade", "antijuridicidade", "culpabilidade",
+            "pena", "processo penal",
         ],
         "Processo Civil": [
-            "processo civil", "processual civil", "cpc", "codigo de processo civil",
-            "tutela provisoria", "recursos civeis"
+            "processo civil", "processual civil", "cpc",
+            "código de processo civil", "tutela provisória",
+            "recursos cíveis", "execução civil",
         ],
         "Processo Penal": [
             "processo penal", "processual penal", "cpp",
-            "inquerito policial", "acao penal"
+            "inquérito policial", "ação penal",
         ],
         "Direito Constitucional": [
-            "constituicao", "constitucional", "direitos fundamentais",
-            "controle de constitucionalidade", "poder constituinte",
-            "direitos humanos"
+            "constitucional", "constituição", "constituicao",
+            "direitos fundamentais", "controle de constitucionalidade",
+            "poder constituinte", "direitos humanos",
         ],
         "Direito Administrativo": [
-            "administrativo", "licitacao", "licitação", "servidor publico",
-            "ato administrativo", "poder de policia", "concessao"
+            "administrativo", "licitação", "licitacao",
+            "servidor público", "ato administrativo",
+            "poder de polícia", "concessão",
         ],
         "Direito Tributario": [
-            "tributario", "tributário", "imposto", "tributo", "icms",
-            "contribuicao", "taxa", "fato gerador"
+            "tributário", "tributario", "imposto", "tributo",
+            "icms", "contribuição", "taxa", "fato gerador",
         ],
         "Direito do Trabalho": [
-            "trabalho", "trabalhista", "clt", "empregado", "empregador",
-            "rescisao", "ferias", "salario"
+            "direito do trabalho", "trabalhista", "clt",
+            "empregado", "empregador", "rescisão", "férias",
         ],
         "Direito Empresarial": [
-            "empresarial", "comercial", "sociedade", "falencia",
-            "recuperacao judicial", "titulos de credito"
+            "empresarial", "comercial", "sociedade",
+            "falência", "falencia", "recuperação judicial",
+            "títulos de crédito",
         ],
         "Direito Ambiental": [
-            "ambiental", "meio ambiente", "licenciamento",
-            "dano ambiental", "sustentabilidade"
+            "ambiental", "meio ambiente", "licenciamento ambiental",
         ],
         "Direito do Consumidor": [
-            "consumidor", "cdc", "relacao de consumo",
-            "praticas abusivas", "recall"
-        ],
-        "Direito Internacional": [
-            "internacional", "tratado", "convencao",
-            "direito comunitario", "extradicao"
-        ],
-        "Direito Urbanistico": [
-            "estatuto da cidade", "urbanistico", "urbanístico",
-            "zoneamento", "plano diretor"
+            "consumidor", "cdc", "relação de consumo",
+            "código de defesa do consumidor",
         ],
     }
 
@@ -285,142 +381,208 @@ def detectar_materia(nome, texto, caminho):
 
 
 # ============================================================
-# PROCESSAMENTO
+# CHUNKING INTELIGENTE
 # ============================================================
 
-documentos = []
+def criar_chunks_pagina(texto_pagina, metadados, pagina_num, capitulo):
+    """Divide o texto de uma pagina em chunks menores com metadados."""
+    chunks = []
+
+    # Se a pagina e pequena, usa como chunk unico
+    if len(texto_pagina) <= CHUNK_SIZE + 100:
+        if len(texto_pagina.strip()) >= 50:
+            meta = {**metadados, "page": pagina_num, "pagina": pagina_num, "capitulo": capitulo}
+            chunks.append(Document(text=texto_pagina.strip(), metadata=meta))
+        return chunks
+
+    # Dividir em chunks menores
+    inicio = 0
+    while inicio < len(texto_pagina):
+        fim = min(inicio + CHUNK_SIZE, len(texto_pagina))
+
+        # Tentar cortar em ponto natural (final de frase)
+        if fim < len(texto_pagina):
+            # Procurar ". " ou "\n" proximo do fim
+            melhor_corte = -1
+            for sep in [". ", ".\n", "\n\n", "\n", "; ", ", "]:
+                pos = texto_pagina.rfind(sep, inicio + CHUNK_SIZE // 2, fim + 50)
+                if pos > melhor_corte:
+                    melhor_corte = pos + len(sep)
+
+            if melhor_corte > inicio:
+                fim = melhor_corte
+
+        trecho = texto_pagina[inicio:fim].strip()
+        if len(trecho) >= 50:
+            meta = {**metadados, "page": pagina_num, "pagina": pagina_num, "capitulo": capitulo}
+            chunks.append(Document(text=trecho, metadata=meta))
+
+        # Proximo chunk com overlap
+        inicio = max(inicio + 1, fim - CHUNK_OVERLAP)
+
+    return chunks
+
+
+# ============================================================
+# PROCESSAMENTO PRINCIPAL
+# ============================================================
+
+start_time = time.time()
+total_chunks_criados = 0
 livros_processados = 0
 livros_pulados = 0
 livros_erro = 0
-start_time = time.time()
+documentos_pendentes = []
 
 logger.info(f"Buscando livros em: {PASTA_LIVROS}")
 
-total_arquivos = 0
+# Contar arquivos
+todos_arquivos = []
 for raiz, _, arquivos in os.walk(PASTA_LIVROS):
-    for arquivo in arquivos:
+    for arquivo in sorted(arquivos):
         ext = arquivo.lower()
         if ext.endswith(".pdf") or ext.endswith(".epub"):
-            total_arquivos += 1
+            todos_arquivos.append(os.path.join(raiz, arquivo))
 
-logger.info(f"Encontrados: {total_arquivos} livros")
+logger.info(f"Encontrados: {len(todos_arquivos)} livros")
+tamanho_total = sum(os.path.getsize(f) for f in todos_arquivos) / (1024**3)
+logger.info(f"Tamanho total: {tamanho_total:.1f}GB")
 logger.info("=" * 60)
 
-contador = 0
-for raiz, _, arquivos in os.walk(PASTA_LIVROS):
-    for arquivo in arquivos:
-        ext = arquivo.lower()
-        if not (ext.endswith(".pdf") or ext.endswith(".epub")):
+
+def salvar_lote(docs):
+    """Salva um lote de documentos no indice."""
+    global documentos_pendentes
+    if not docs:
+        return
+
+    if os.path.exists(os.path.join(PASTA_INDICE, "docstore.json")):
+        storage = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
+        index = load_index_from_storage(storage)
+        for d in docs:
+            index.insert(d)
+    else:
+        index = VectorStoreIndex.from_documents(docs)
+
+    index.storage_context.persist(persist_dir=PASTA_INDICE)
+    documentos_pendentes = []
+
+
+# Processar cada livro
+for idx, caminho_completo in enumerate(todos_arquivos):
+    arquivo = os.path.basename(caminho_completo)
+    raiz = os.path.dirname(caminho_completo)
+    ext = arquivo.lower()
+
+    # Hash para deduplicacao
+    file_hash = hash_arquivo(caminho_completo)
+
+    if file_hash in controle:
+        livros_pulados += 1
+        continue
+
+    logger.info(f"[{idx+1}/{len(todos_arquivos)}] {arquivo}")
+
+    try:
+        # Extrair texto
+        if ext.endswith(".pdf"):
+            paginas, meta_raw = ler_pdf(caminho_completo)
+        elif ext.endswith(".epub"):
+            paginas, meta_raw = ler_epub(caminho_completo)
+        else:
             continue
 
-        contador += 1
-        caminho = os.path.join(raiz, arquivo)
-        file_hash = hash_arquivo(caminho)
-
-        if file_hash in controle:
-            livros_pulados += 1
-            continue
-
-        logger.info(f"[{contador}/{total_arquivos}] {arquivo}")
-
-        try:
-            if ext.endswith(".pdf"):
-                texto, paginas = ler_pdf(caminho)
-            else:
-                texto, paginas = ler_epub(caminho)
-
-            if len(texto.strip()) < 500:
-                logger.warning("  Texto muito pequeno - ignorado")
-                livros_erro += 1
-                continue
-
-            ano = extrair_ano(arquivo, texto)
-            autor = extrair_autor(arquivo, texto)
-            edicao = extrair_edicao(arquivo, texto)
-            materia = detectar_materia(arquivo, texto, raiz)
-
-            logger.info(f"  Autor: {autor or '?'}")
-            logger.info(f"  Ano: {ano or '?'} | Materia: {materia} | Paginas: {len(paginas)}")
-            if edicao:
-                logger.info(f"  Edicao: {edicao}")
-
-            # Criar um Document POR PAGINA para preservar numero da pagina
-            for pg in paginas:
-                if len(pg["texto"].strip()) < 50:
-                    continue
-                doc = Document(
-                    text=pg["texto"],
-                    metadata={
-                        "arquivo": arquivo,
-                        "caminho": raiz,
-                        "ano": ano,
-                        "author": autor,
-                        "autor": autor,
-                        "title": Path(arquivo).stem,
-                        "edicao": edicao,
-                        "materia": materia,
-                        "legal_subject": materia,
-                        "hash": file_hash,
-                        "page": pg["pagina"],
-                        "pagina": pg["pagina"],
-                        "capitulo": pg.get("capitulo", ""),
-                    },
-                )
-                documentos.append(doc)
-
-            controle[file_hash] = {
-                "arquivo": arquivo,
-                "autor": autor,
-                "ano": ano,
-                "edicao": edicao,
-                "materia": materia,
-                "paginas": len(paginas),
-            }
-
-            salvar_controle()
-            livros_processados += 1
-
-            # Indexar em lotes de 50 documentos (paginas) para nao perder progresso
-            if len(documentos) >= 50:
-                logger.info(f"  Indexando lote de {len(documentos)} paginas...")
-                if os.path.exists(PASTA_INDICE):
-                    storage = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
-                    index = load_index_from_storage(storage)
-                    for d in documentos:
-                        index.insert(d)
-                else:
-                    index = VectorStoreIndex.from_documents(documentos)
-                index.storage_context.persist(persist_dir=PASTA_INDICE)
-                documentos = []
-                logger.info("  Lote indexado e salvo!")
-
-        except Exception as e:
-            logger.error(f"  Erro: {e}")
+        if not paginas or len(paginas) < 1:
+            logger.warning("  Sem conteudo - ignorado")
             livros_erro += 1
             continue
 
+        texto_amostra = meta_raw.get("texto_amostra", "")
+
+        # Extrair metadados
+        autor = extrair_autor(arquivo, meta_raw, texto_amostra)
+        titulo = extrair_titulo(arquivo, meta_raw)
+        ano = extrair_ano(arquivo, meta_raw, texto_amostra)
+        edicao = extrair_edicao(arquivo, texto_amostra)
+        materia = detectar_materia(arquivo, texto_amostra, raiz)
+
+        logger.info(f"  Titulo: {titulo}")
+        logger.info(f"  Autor: {autor or '(nao detectado)'}")
+        logger.info(f"  Ano: {ano or '?'} | Materia: {materia} | Paginas: {meta_raw.get('total_paginas', '?')}")
+
+        # Metadados base para todos os chunks deste livro
+        metadados_base = {
+            "arquivo": arquivo,
+            "caminho": raiz,
+            "ano": ano,
+            "author": autor,
+            "autor": autor,
+            "title": titulo,
+            "edicao": edicao,
+            "materia": materia,
+            "legal_subject": materia,
+            "hash": file_hash,
+        }
+
+        # Criar chunks pagina por pagina
+        chunks_livro = 0
+        for pg in paginas:
+            chunks = criar_chunks_pagina(
+                pg["texto"],
+                metadados_base,
+                pg["pagina"],
+                pg.get("capitulo", ""),
+            )
+            documentos_pendentes.extend(chunks)
+            chunks_livro += len(chunks)
+
+        total_chunks_criados += chunks_livro
+        livros_processados += 1
+
+        logger.info(f"  Chunks: {chunks_livro} | Total acumulado: {total_chunks_criados}")
+
+        # Salvar no controle
+        controle[file_hash] = {
+            "arquivo": arquivo,
+            "autor": autor,
+            "titulo": titulo,
+            "ano": ano,
+            "edicao": edicao,
+            "materia": materia,
+            "paginas": meta_raw.get("total_paginas", 0),
+            "chunks": chunks_livro,
+            "indexado_em": datetime.now().isoformat(),
+        }
+        salvar_controle()
+
+        # Salvar lote quando acumular bastante
+        if len(documentos_pendentes) >= LOTE_SALVAR:
+            logger.info(f"  Salvando lote de {len(documentos_pendentes)} chunks...")
+            salvar_lote(documentos_pendentes)
+            logger.info(f"  Lote salvo!")
+
+    except Exception as e:
+        livros_erro += 1
+        logger.error(f"  ERRO: {e}")
+        continue
+
 # ============================================================
-# INDEXACAO FINAL
+# SALVAR LOTE FINAL
 # ============================================================
 
-if documentos:
-    logger.info(f"Indexando lote final de {len(documentos)} paginas...")
-    if os.path.exists(PASTA_INDICE):
-        storage = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
-        index = load_index_from_storage(storage)
-        for d in documentos:
-            index.insert(d)
-    else:
-        index = VectorStoreIndex.from_documents(documentos)
-    index.storage_context.persist(persist_dir=PASTA_INDICE)
-    logger.info("Indexacao concluida!")
+if documentos_pendentes:
+    logger.info(f"Salvando lote final de {len(documentos_pendentes)} chunks...")
+    salvar_lote(documentos_pendentes)
+    logger.info("Salvo!")
 
 # ============================================================
 # RELATORIO FINAL
 # ============================================================
 
 elapsed = time.time() - start_time
-elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
+horas = int(elapsed // 3600)
+minutos = int((elapsed % 3600) // 60)
+segundos = int(elapsed % 60)
 
 logger.info("")
 logger.info("=" * 60)
@@ -429,16 +591,18 @@ logger.info("=" * 60)
 logger.info(f"Livros processados: {livros_processados}")
 logger.info(f"Livros pulados (ja indexados): {livros_pulados}")
 logger.info(f"Livros com erro: {livros_erro}")
-logger.info(f"Tempo: {elapsed_str}")
+logger.info(f"Total de chunks criados: {total_chunks_criados:,}")
+logger.info(f"Tempo: {horas}h {minutos}min {segundos}s")
 logger.info("")
-logger.info(f"Arquivos gerados:")
-logger.info(f"  {PASTA_INDICE}/        - indice vetorial (para o servidor)")
-logger.info(f"  {ARQUIVO_CONTROLE}  - controle de indexacao")
+logger.info("Arquivos gerados:")
+logger.info(f"  {PASTA_INDICE}/           - indice vetorial")
+logger.info(f"  {ARQUIVO_CONTROLE}   - controle de duplicatas")
+logger.info(f"  indexacao.log         - log completo")
 logger.info("")
 logger.info("PROXIMO PASSO:")
-logger.info(f"  1. Compacte a pasta '{PASTA_INDICE}' e '{ARQUIVO_CONTROLE}' em um ZIP")
+logger.info(f"  1. Compacte '{PASTA_INDICE}/' e '{ARQUIVO_CONTROLE}' em um ZIP")
 logger.info(f"  2. Importe pelo botao 'Importar ZIP' no JuristaAI")
 
 if livros_erro > 0:
-    logger.info(f"")
-    logger.info(f"{livros_erro} livros tiveram erro.")
+    logger.info("")
+    logger.info(f"{livros_erro} livros com erro. Veja indexacao.log para detalhes.")
