@@ -84,17 +84,24 @@ async def process_question(
         )
     
     # =========================================================
-    # STEP 2: DOCTRINE COMPARATOR
+    # STEP 2: DOCTRINE GRAPH + COMPARATOR
     # =========================================================
-    logger.info("[2/5] Doctrine Comparator: analyzing positions...")
+    logger.info("[2/5] Doctrine Graph: building doctrinal blocks...")
+    doctrinal_blocks = doctrine_graph.build_doctrinal_blocks(filtered_results)
+    structured_context = doctrine_graph.build_structured_context(doctrinal_blocks)
+    
     doctrine_analysis = doctrine_comparator.analyze_doctrine(filtered_results)
-    doctrine_context = doctrine_comparator.build_doctrine_context(doctrine_analysis)
+    comparator_context = doctrine_comparator.build_doctrine_context(doctrine_analysis)
+    
+    full_doctrine_context = structured_context
+    if comparator_context:
+        full_doctrine_context += "\n" + comparator_context
     
     summary = doctrine_analysis.get("summary", {})
     logger.info(
-        f"  Authors: {summary.get('total_authors', 0)}, "
+        f"  Blocks: {len(doctrinal_blocks)}, "
+        f"Authors: {summary.get('total_authors', 0)}, "
         f"Divergence: {summary.get('has_divergence', False)}, "
-        f"Evolution: {summary.get('has_evolution', False)}, "
         f"Minority: {summary.get('has_minority', False)}"
     )
     
@@ -105,7 +112,7 @@ async def process_question(
     answer = reasoning_service.generate_response(
         question=question,
         search_results=filtered_results,
-        doctrine_context=doctrine_context
+        doctrine_context=full_doctrine_context
     )
     
     # =========================================================
