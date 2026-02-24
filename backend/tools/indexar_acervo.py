@@ -232,6 +232,102 @@ def detectar_capitulo(texto):
 
 
 # ============================================================
+# ISBN - EXTRACAO E BUSCA ONLINE
+# ============================================================
+
+def extrair_isbn(texto_amostra, texto_final=""):
+    """Extrai ISBN do texto (primeiras e ultimas paginas)."""
+    texto_busca = texto_amostra + "\n" + texto_final
+
+    # ISBN-13: 978 ou 979 seguido de 10 digitos
+    patterns = [
+        r'ISBN[\s:\-]*(\d[\d\-\s]{11,16}\d)',
+        r'ISBN[\s:\-]*(\d{3}[\-\s]?\d[\-\s]?\d{2,5}[\-\s]?\d{2,6}[\-\s]?\d)',
+        r'(97[89][\-\s]?\d[\-\s]?\d{2,5}[\-\s]?\d{2,6}[\-\s]?\d)',
+        r'(97[89]\d{10})',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, texto_busca, re.IGNORECASE)
+        if match:
+            isbn = re.sub(r'[\s\-]', '', match.group(1))
+            if len(isbn) == 13 and isbn.startswith(('978', '979')):
+                return isbn
+            elif len(isbn) == 10:
+                return isbn
+
+    return ""
+
+
+# Cache para nao repetir consultas
+_isbn_cache = {}
+
+
+def buscar_isbn_online(isbn):
+    """Busca metadados do livro pelo ISBN via APIs gratuitas."""
+    if not isbn:
+        return None
+
+    if isbn in _isbn_cache:
+        return _isbn_cache[isbn]
+
+    resultado = None
+
+    # 1. Google Books API (gratuita, sem chave)
+    try:
+        import requests
+        url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}"
+        r = requests.get(url, timeout=8)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("totalItems", 0) > 0:
+                info = data["items"][0]["volumeInfo"]
+                resultado = {
+                    "titulo": info.get("title", ""),
+                    "autor": ", ".join(info.get("authors", [])),
+                    "ano": 0,
+                    "editora": info.get("publisher", ""),
+                    "isbn": isbn,
+                    "fonte": "Google Books",
+                }
+                # Extrair ano
+                pub_date = info.get("publishedDate", "")
+                year_match = re.search(r'(\d{4})', pub_date)
+                if year_match:
+                    resultado["ano"] = int(year_match.group(1))
+
+                logger.info(f"  ISBN {isbn} -> Google Books: {resultado['autor']} - {resultado['titulo']}")
+    except Exception:
+        pass
+
+    # 2. Open Library (fallback)
+    if not resultado:
+        try:
+            import requests
+            url = f"https://openlibrary.org/search.json?isbn={isbn}&limit=1"
+            r = requests.get(url, timeout=8)
+            if r.status_code == 200:
+                data = r.json()
+                if data.get("numFound", 0) > 0:
+                    doc = data["docs"][0]
+                    autores = doc.get("author_name", [])
+                    resultado = {
+                        "titulo": doc.get("title", ""),
+                        "autor": ", ".join(autores) if autores else "",
+                        "ano": doc.get("first_publish_year", 0),
+                        "editora": ", ".join(doc.get("publisher", [])[:2]),
+                        "isbn": isbn,
+                        "fonte": "Open Library",
+                    }
+                    logger.info(f"  ISBN {isbn} -> Open Library: {resultado['autor']} - {resultado['titulo']}")
+        except Exception:
+            pass
+
+    _isbn_cache[isbn] = resultado
+    return resultado
+
+
+# ============================================================
 # EXTRACAO DE METADADOS
 # ============================================================
 
