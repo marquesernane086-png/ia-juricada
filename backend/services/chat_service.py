@@ -118,7 +118,7 @@ async def process_question(
     # =========================================================
     # STEP 3: LEGAL APPLICATOR (LLM)
     # =========================================================
-    logger.info("[3/5] Legal Applicator: generating parecer...")
+    logger.info("[4/6] Legal Applicator: generating parecer...")
     answer = reasoning_service.generate_response(
         question=question,
         search_results=filtered_results,
