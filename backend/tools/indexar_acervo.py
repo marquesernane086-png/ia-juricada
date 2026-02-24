@@ -670,6 +670,8 @@ for idx, caminho_completo in enumerate(todos_arquivos):
             "titulo": titulo,
             "ano": ano,
             "edicao": edicao,
+            "editora": editora,
+            "isbn": isbn,
             "materia": materia,
             "paginas": meta_raw.get("total_paginas", 0),
             "chunks": chunks_livro,
