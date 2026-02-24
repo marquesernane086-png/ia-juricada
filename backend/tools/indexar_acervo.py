@@ -631,6 +631,10 @@ for idx, caminho_completo in enumerate(todos_arquivos):
             logger.info(f"  ISBN: {isbn}")
 
         # Metadados base para todos os chunks deste livro
+        # Hierarchical doctrine IDs for Doctrine Graph Layer
+        author_id = _doctrine_hash(f"{(autor or '').lower().strip()}")
+        work_id = _doctrine_hash(f"{(autor or '').lower()}|{(titulo or '').lower()}|{edicao or ''}")
+
         metadados_base = {
             "arquivo": arquivo,
             "caminho": raiz,
@@ -644,6 +648,8 @@ for idx, caminho_completo in enumerate(todos_arquivos):
             "materia": materia,
             "legal_subject": materia,
             "hash": file_hash,
+            "author_id": f"a_{author_id}",
+            "work_id": f"w_{work_id}",
         }
 
         # Criar chunks pagina por pagina
