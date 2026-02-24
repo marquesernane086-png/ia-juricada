@@ -239,16 +239,21 @@ def extrair_autor(nome_arquivo, meta_pdf, texto_amostra):
     """Extrai autor: 1) metadados PDF, 2) nome do arquivo, 3) texto."""
     # 1. Metadados internos do PDF
     autor = meta_pdf.get("autor_pdf", "")
-    if autor and len(autor) > 2 and autor.lower() not in ["unknown", "admin", "user", "microsoft"]:
+    if autor and len(autor) > 2 and autor.lower() not in [
+        "unknown", "admin", "user", "microsoft", "adobe",
+        "scanner", "ocr", "calibre", "epublib",
+    ]:
         return autor.strip()
 
-    # 2. Nome do arquivo: "Autor - Titulo (Ano).pdf"
+    # 2. Nome do arquivo: "Autor - Titulo (Ano).pdf" ou "Sobrenome - Titulo"
     nome = Path(nome_arquivo).stem
-    partes = re.split(r'\s*[-–—]\s*', nome, maxsplit=1)
-    if len(partes) == 2 and len(partes[0]) < 50:
+    # Remover ano
+    nome_limpo = re.sub(r'\s*[\(\[]\d{4}[\)\]]', '', nome)
+    partes = re.split(r'\s*[-–—]\s*', nome_limpo, maxsplit=1)
+    if len(partes) == 2 and len(partes[0].strip()) >= 3:
         candidato = partes[0].strip()
-        # Verificar se parece nome de pessoa (tem pelo menos 2 palavras)
-        if len(candidato.split()) >= 2:
+        # Aceitar nome com 1+ palavras (sobrenomes como "Bitencourt", "Gonçalves")
+        if candidato[0].isupper():
             return candidato
 
     # 3. Buscar no texto (primeiras paginas)
