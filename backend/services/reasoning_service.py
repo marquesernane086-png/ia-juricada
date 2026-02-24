@@ -183,7 +183,8 @@ def build_context(results: List[Dict]) -> str:
 def generate_response(
     question: str,
     search_results: List[Dict],
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    doctrine_context: str = ""
 ) -> str:
     """Generate a structured doctrinal legal response.
     
@@ -191,6 +192,7 @@ def generate_response(
         question: User's legal question
         search_results: Retrieved document chunks with metadata
         model: LLM model to use
+        doctrine_context: Additional context from Doctrine Comparator
     
     Returns:
         Structured legal reasoning response
@@ -206,6 +208,10 @@ def generate_response(
     # Build context
     context = build_context(weighted_results)
     
+    # Append doctrine analysis context
+    if doctrine_context:
+        context += "\n" + doctrine_context
+    
     # Build user message
     user_message = f"""PERGUNTA JURÍDICA:
 {question}
@@ -213,20 +219,21 @@ def generate_response(
 CONTEXTO DOUTRINÁRIO (ÚNICA FONTE PERMITIDA):
 {context}
 
-INSTRUÇÕES MUITO IMPORTANTES:
+INSTRUÇÕES:
 1. USE APENAS o conteúdo acima para gerar a resposta.
 2. NÃO acrescente conhecimento externo.
 3. NÃO invente autores ou citações.
-4. SE não houver informações suficientes nos trechos, responda exatamente:
-   "O acervo indexado não contém informações suficientes sobre este tema. Considere adicionar obras doutrinárias relacionadas."
+4. SE não houver informações suficientes nos trechos, diga honestamente.
 5. Cite APENAS os autores e obras que aparecem nos trechos acima.
-6. Produza resposta estruturada com:
-   - RELATÓRIO: explicação do tema
-   - POSIÇÕES DOUTRINÁRIAS: divergências se existirem
-   - EVOLUÇÃO DO ENTENDIMENTO: histórico do tema
-   - CONCLUSÃO: síntese fundamentada
+6. Se houver POSIÇÕES MINORITÁRIAS identificadas, INCLUA-AS na resposta. Nunca suprima divergência doutrinária.
+7. Se houver EVOLUÇÃO ENTRE EDIÇÕES do mesmo autor, destaque as mudanças.
+8. Produza resposta estruturada com:
+   - RELATÓRIO: identificação do instituto jurídico + fundamentação
+   - POSIÇÕES DOUTRINÁRIAS: compare autores, inclua TODAS as posições (majoritária E minoritária)
+   - EVOLUÇÃO DO ENTENDIMENTO: mudanças temporais entre edições ou autores
+   - CONCLUSÃO: síntese fundamentada com efeitos jurídicos precisos
 
-⚠️ IMPORTANTE: ignore qualquer conhecimento prévio, regras gerais do direito, jurisprudência ou legislação que não esteja nos trechos."""
+⚠️ IMPORTANTE: ignore qualquer conhecimento prévio que não esteja nos trechos. Preserve TODAS as posições doutrinárias encontradas, inclusive minoritárias."""
     
     try:
         response = client.chat.completions.create(
