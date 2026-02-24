@@ -84,35 +84,40 @@ async def process_question(
         )
     
     # =========================================================
-    # STEP 2: DOCTRINE GRAPH + COMPARATOR
+    # STEP 2: DOCTRINE GRAPH → SYNTHESIZER
     # =========================================================
-    logger.info("[2/5] Doctrine Graph: building doctrinal blocks...")
+    # 2a: Build doctrinal blocks
+    logger.info("[2/5] Doctrine Graph + Synthesizer...")
     doctrinal_blocks = doctrine_graph.build_doctrinal_blocks(filtered_results)
-    structured_context = doctrine_graph.build_structured_context(doctrinal_blocks)
     
+    # 2b: Synthesize doctrinal positions (LOCAL, no LLM)
+    synthesis = doctrine_synthesizer.synthesize(doctrinal_blocks, legal_issues)
+    
+    # 2c: Also run comparator for minority/divergence detection
     doctrine_analysis = doctrine_comparator.analyze_doctrine(filtered_results)
     comparator_context = doctrine_comparator.build_doctrine_context(doctrine_analysis)
     
-    full_doctrine_context = structured_context
+    # 2d: Build final context for Stage 3 (Legal Applicator)
+    applicator_context = doctrine_synthesizer.build_applicator_context(synthesis, doctrinal_blocks)
     if comparator_context:
-        full_doctrine_context += "\n" + comparator_context
+        applicator_context += "\n" + comparator_context
     
     summary = doctrine_analysis.get("summary", {})
     logger.info(
         f"  Blocks: {len(doctrinal_blocks)}, "
-        f"Authors: {summary.get('total_authors', 0)}, "
-        f"Divergence: {summary.get('has_divergence', False)}, "
-        f"Minority: {summary.get('has_minority', False)}"
+        f"Positions: {len(synthesis.get('doctrinal_positions', []))}, "
+        f"Divergences: {len(synthesis.get('divergence_points', []))}, "
+        f"Authors: {summary.get('total_authors', 0)}"
     )
     
     # =========================================================
-    # STEP 3: LEGAL REASONING AGENT
+    # STEP 3: LEGAL APPLICATOR (LLM)
     # =========================================================
-    logger.info("[3/5] Legal Reasoning Agent: generating response...")
+    logger.info("[3/5] Legal Applicator: generating parecer...")
     answer = reasoning_service.generate_response(
         question=question,
         search_results=filtered_results,
-        doctrine_context=full_doctrine_context
+        doctrine_context=applicator_context
     )
     
     # =========================================================
