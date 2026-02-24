@@ -86,7 +86,7 @@ async def process_question(
     # =========================================================
     # STEP 2: DOCTRINE COMPARATOR
     # =========================================================
-    logger.info("[2/4] Doctrine Comparator: analyzing positions...")
+    logger.info("[2/5] Doctrine Comparator: analyzing positions...")
     doctrine_analysis = doctrine_comparator.analyze_doctrine(filtered_results)
     doctrine_context = doctrine_comparator.build_doctrine_context(doctrine_analysis)
     
