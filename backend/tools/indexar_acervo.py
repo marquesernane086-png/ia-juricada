@@ -110,6 +110,12 @@ def hash_arquivo(path):
     return sha.hexdigest()
 
 
+def _doctrine_hash(text):
+    """Short hash for doctrine graph IDs."""
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()[:12]
+
+
+
 # ============================================================
 # EXTRACAO DE TEXTO - PDF
 # ============================================================
