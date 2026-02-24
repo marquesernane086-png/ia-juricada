@@ -498,7 +498,13 @@ def criar_chunks_pagina(texto_pagina, metadados, pagina_num, capitulo):
     # Se a pagina e pequena, usa como chunk unico
     if len(texto_pagina) <= CHUNK_SIZE + 100:
         if len(texto_pagina.strip()) >= 50:
-            meta = {**metadados, "page": pagina_num, "pagina": pagina_num, "capitulo": capitulo}
+            ch_id = _doctrine_hash(f"{metadados.get('work_id','')}|{capitulo or ''}")
+            d_id = _doctrine_hash(f"{metadados.get('author_id','')}|{metadados.get('materia','')}|ch_{ch_id}")
+            meta = {
+                **metadados,
+                "page": pagina_num, "pagina": pagina_num, "capitulo": capitulo,
+                "chapter_id": f"ch_{ch_id}", "doctrine_id": f"d_{d_id}",
+            }
             chunks.append(Document(text=texto_pagina.strip(), metadata=meta))
         return chunks
 
