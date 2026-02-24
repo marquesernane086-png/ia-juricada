@@ -633,21 +633,30 @@ logger.info("=" * 60)
 
 
 def salvar_lote(docs):
-    """Salva um lote de documentos no indice."""
-    global documentos_pendentes
+    """Salva um lote de documentos no indice — MANTENDO EM MEMORIA."""
+    global documentos_pendentes, _index_memoria
     if not docs:
         return
 
-    if os.path.exists(os.path.join(PASTA_INDICE, "docstore.json")):
-        storage = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
-        index = load_index_from_storage(storage)
-        for d in docs:
-            index.insert(d)
-    else:
-        index = VectorStoreIndex.from_documents(docs)
+    # Inserir no indice em memoria (rapido!)
+    for d in docs:
+        _index_memoria.insert(d)
 
-    index.storage_context.persist(persist_dir=PASTA_INDICE)
+    # Persistir em disco
+    _index_memoria.storage_context.persist(persist_dir=PASTA_INDICE)
     documentos_pendentes = []
+
+
+# Carregar indice UMA VEZ na memoria
+logger.info("Carregando indice na memoria (uma unica vez)...")
+if os.path.exists(os.path.join(PASTA_INDICE, "docstore.json")):
+    _storage = StorageContext.from_defaults(persist_dir=PASTA_INDICE)
+    _index_memoria = load_index_from_storage(_storage)
+    logger.info(f"Indice carregado: {len(_index_memoria.docstore.docs)} chunks existentes")
+else:
+    _index_memoria = VectorStoreIndex.from_documents([])
+    _index_memoria.storage_context.persist(persist_dir=PASTA_INDICE)
+    logger.info("Novo indice criado")
 
 
 # Processar cada livro
