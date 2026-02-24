@@ -1,10 +1,18 @@
-"""Chat Service - Orchestrates the full RAG pipeline for legal questions."""
+"""Chat Service - Orchestrates the full RAG pipeline for legal questions.
+
+Pipeline:
+  1. Vector Retrieval (vector_service)
+  2. Doctrine Comparator (doctrine_comparator)  
+  3. Legal Reasoning Agent (reasoning_service)
+  4. Citation Guardian (citation_guardian)
+  5. Final Response
+"""
 
 import time
 import logging
 from typing import Dict, List, Optional
 
-from services import vector_service, reasoning_service
+from services import vector_service, reasoning_service, citation_guardian, doctrine_comparator
 from models.schemas import ChatResponse, SourceReference
 
 logger = logging.getLogger(__name__)
@@ -13,58 +21,96 @@ logger = logging.getLogger(__name__)
 async def process_question(
     question: str,
     session_id: str,
-    max_sources: int = 10,
+    max_sources: int = 15,
     where_filter: Optional[Dict] = None
 ) -> ChatResponse:
-    """Process a legal question through the full RAG pipeline.
+    """Process a legal question through the full agent pipeline.
     
     Pipeline:
-    1. Semantic search in vector store
-    2. Apply temporal weighting
-    3. Group by author
-    4. Generate doctrinal reasoning response
-    
-    Args:
-        question: User's legal question
-        session_id: Session identifier
-        max_sources: Maximum number of source chunks to retrieve
-        where_filter: Optional metadata filter
-    
-    Returns:
-        ChatResponse with answer and sources
+    1. Vector Retrieval → semantic search
+    2. Doctrine Comparator → analyze positions, detect divergence
+    3. Legal Reasoning Agent → generate structured response
+    4. Citation Guardian → validate all citations
+    5. Final Response → deliver to user
     """
     start_time = time.time()
     
-    # Step 1: Semantic search
-    logger.info(f"Processing question: {question[:100]}...")
+    # =========================================================
+    # STEP 1: VECTOR RETRIEVAL
+    # =========================================================
+    logger.info(f"[1/4] Vector Retrieval: {question[:80]}...")
     search_results = vector_service.search(
         query=question,
         n_results=max_sources,
         where_filter=where_filter
     )
     
-    # Step 1.5: Filter out low-relevance results (score threshold)
-    # LlamaIndex scores are typically lower than cosine similarity
-    # Use a low threshold to not miss relevant content
+    # Filter low-relevance results
     MIN_RELEVANCE_SCORE = 0.20
     filtered_results = [r for r in search_results if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
-    logger.info(f"Results: {len(search_results)} total, {len(filtered_results)} above threshold ({MIN_RELEVANCE_SCORE})")
+    logger.info(f"  Retrieved: {len(search_results)} → Filtered: {len(filtered_results)}")
     
-    # Step 2: Generate doctrinal response
-    if filtered_results:
-        answer = reasoning_service.generate_response(question, filtered_results)
-    else:
-        answer = (
-            "## RELATÓRIO\n\n"
-            "Não foram encontradas fontes doutrinárias indexadas no acervo para responder "
-            "a esta questão. Para que o JuristaAI possa fornecer fundamentação doutrinária "
-            "adequada, é necessário que livros jurídicos relevantes ao tema sejam indexados "
-            "no sistema.\n\n"
-            "**Recomendação:** Faça o upload de obras doutrinárias relacionadas ao tema "
-            "consultado para habilitar a pesquisa doutrinária."
+    if not filtered_results:
+        processing_time = time.time() - start_time
+        return ChatResponse(
+            answer=(
+                "## RELATÓRIO\n\n"
+                "Não foram encontradas fontes doutrinárias indexadas no acervo para responder "
+                "a esta questão. Para que o JuristaAI possa fornecer fundamentação doutrinária "
+                "adequada, é necessário que livros jurídicos relevantes ao tema sejam indexados "
+                "no sistema.\n\n"
+                "**Recomendação:** Faça o upload de obras doutrinárias relacionadas ao tema "
+                "consultado para habilitar a pesquisa doutrinária."
+            ),
+            sources=[],
+            session_id=session_id,
+            question=question,
+            processing_time=round(processing_time, 2),
+            chunks_retrieved=0
         )
     
-    # Step 3: Build source references
+    # =========================================================
+    # STEP 2: DOCTRINE COMPARATOR
+    # =========================================================
+    logger.info("[2/4] Doctrine Comparator: analyzing positions...")
+    doctrine_analysis = doctrine_comparator.analyze_doctrine(filtered_results)
+    doctrine_context = doctrine_comparator.build_doctrine_context(doctrine_analysis)
+    
+    summary = doctrine_analysis.get("summary", {})
+    logger.info(
+        f"  Authors: {summary.get('total_authors', 0)}, "
+        f"Divergence: {summary.get('has_divergence', False)}, "
+        f"Evolution: {summary.get('has_evolution', False)}, "
+        f"Minority: {summary.get('has_minority', False)}"
+    )
+    
+    # =========================================================
+    # STEP 3: LEGAL REASONING AGENT
+    # =========================================================
+    logger.info("[3/4] Legal Reasoning Agent: generating response...")
+    answer = reasoning_service.generate_response(
+        question=question,
+        search_results=filtered_results,
+        doctrine_context=doctrine_context
+    )
+    
+    # =========================================================
+    # STEP 4: CITATION GUARDIAN
+    # =========================================================
+    logger.info("[4/4] Citation Guardian: validating citations...")
+    validated_answer, citation_report = citation_guardian.validate_response(
+        response_text=answer,
+        sources=filtered_results
+    )
+    
+    logger.info(
+        f"  Citations: {citation_report['total_citations']} total, "
+        f"{citation_report['valid']} valid, {citation_report['invalid']} flagged"
+    )
+    
+    # =========================================================
+    # STEP 5: BUILD FINAL RESPONSE
+    # =========================================================
     sources = []
     for result in filtered_results:
         meta = result.get("metadata", {})
@@ -93,8 +139,10 @@ async def process_question(
     
     processing_time = time.time() - start_time
     
+    logger.info(f"Pipeline complete: {processing_time:.1f}s")
+    
     return ChatResponse(
-        answer=answer,
+        answer=validated_answer,
         sources=sources,
         session_id=session_id,
         question=question,
