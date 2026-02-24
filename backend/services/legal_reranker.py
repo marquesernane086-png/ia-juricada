@@ -92,7 +92,6 @@ def _apply_legal_filtering(results: List[Dict], legal_issues: Dict) -> List[Dict
     """Boost scores based on legal relevance."""
 
     detected_area = (legal_issues.get("legal_area", "") or "").lower()
-    detected_institute = (legal_issues.get("legal_institute", "") or "").lower()
     detected_keywords = [k.lower() for k in legal_issues.get("keywords_for_retrieval", [])]
 
     # Extract article from question keywords
