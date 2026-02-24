@@ -794,6 +794,10 @@ if documentos_pendentes:
     logger.info(f"Salvando lote final de {len(documentos_pendentes)} chunks...")
     salvar_lote(documentos_pendentes)
     logger.info("Salvo!")
+elif _index_memoria:
+    # Persistir mesmo sem pendentes (garante que tudo esta salvo)
+    _index_memoria.storage_context.persist(persist_dir=PASTA_INDICE)
+    logger.info("Indice final persistido.")
 
 # ============================================================
 # RELATORIO FINAL
