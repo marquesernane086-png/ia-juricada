@@ -27,7 +27,8 @@ async def process_question(
     """Process a legal question through the full agent pipeline.
     
     Pipeline:
-    1. Vector Retrieval → semantic search
+    0. Legal Issue Extractor → decompose question
+    1. Vector Retrieval → semantic search with enhanced query
     2. Doctrine Comparator → analyze positions, detect divergence
     3. Legal Reasoning Agent → generate structured response
     4. Citation Guardian → validate all citations
@@ -36,11 +37,24 @@ async def process_question(
     start_time = time.time()
     
     # =========================================================
+    # STEP 0: LEGAL ISSUE EXTRACTOR
+    # =========================================================
+    logger.info(f"[0/5] Legal Issue Extractor: {question[:80]}...")
+    legal_issues = legal_issue_extractor.extract_legal_issues(question)
+    enhanced_query = legal_issue_extractor.build_enhanced_query(question, legal_issues)
+    
+    logger.info(
+        f"  Area: {legal_issues.get('legal_area')} | "
+        f"Instituto: {legal_issues.get('legal_institute')} | "
+        f"Keywords: {legal_issues.get('keywords_for_retrieval', [])[:5]}"
+    )
+    
+    # =========================================================
     # STEP 1: VECTOR RETRIEVAL
     # =========================================================
-    logger.info(f"[1/4] Vector Retrieval: {question[:80]}...")
+    logger.info(f"[1/5] Vector Retrieval...")
     search_results = vector_service.search(
-        query=question,
+        query=enhanced_query,
         n_results=max_sources,
         where_filter=where_filter
     )
