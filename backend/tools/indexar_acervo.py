@@ -600,16 +600,35 @@ for idx, caminho_completo in enumerate(todos_arquivos):
 
         texto_amostra = meta_raw.get("texto_amostra", "")
 
-        # Extrair metadados
-        autor = extrair_autor(arquivo, meta_raw, texto_amostra)
-        titulo = extrair_titulo(arquivo, meta_raw)
-        ano = extrair_ano(arquivo, meta_raw, texto_amostra)
+        # Extrair ISBN e buscar metadados online
+        texto_final = "\n".join(p["texto"] for p in paginas[-5:]) if len(paginas) > 5 else ""
+        isbn = extrair_isbn(texto_amostra, texto_final)
+        isbn_meta = None
+        if isbn:
+            logger.info(f"  ISBN encontrado: {isbn}")
+            isbn_meta = buscar_isbn_online(isbn)
+
+        # Extrair metadados (ISBN online tem prioridade)
+        if isbn_meta and isbn_meta.get("autor"):
+            autor = isbn_meta["autor"]
+            titulo = isbn_meta.get("titulo") or extrair_titulo(arquivo, meta_raw)
+            ano = isbn_meta.get("ano") or extrair_ano(arquivo, meta_raw, texto_amostra)
+            editora = isbn_meta.get("editora", "")
+            logger.info(f"  Metadados via ISBN ({isbn_meta.get('fonte','API')})")
+        else:
+            autor = extrair_autor(arquivo, meta_raw, texto_amostra)
+            titulo = extrair_titulo(arquivo, meta_raw)
+            ano = extrair_ano(arquivo, meta_raw, texto_amostra)
+            editora = ""
+
         edicao = extrair_edicao(arquivo, texto_amostra)
         materia = detectar_materia(arquivo, texto_amostra, raiz)
 
         logger.info(f"  Titulo: {titulo}")
         logger.info(f"  Autor: {autor or '(nao detectado)'}")
         logger.info(f"  Ano: {ano or '?'} | Materia: {materia} | Paginas: {meta_raw.get('total_paginas', '?')}")
+        if isbn:
+            logger.info(f"  ISBN: {isbn}")
 
         # Metadados base para todos os chunks deste livro
         metadados_base = {
@@ -620,6 +639,8 @@ for idx, caminho_completo in enumerate(todos_arquivos):
             "autor": autor,
             "title": titulo,
             "edicao": edicao,
+            "editora": editora,
+            "isbn": isbn,
             "materia": materia,
             "legal_subject": materia,
             "hash": file_hash,
