@@ -213,7 +213,7 @@ export default function ChatPage() {
       const response = await axios.post(`${API}/chat`, {
         question,
         session_id: sessionId.current,
-        max_sources: 10,
+        max_sources: 15,
       }, {
         timeout: 120000, // 2 minutos de timeout
       });
