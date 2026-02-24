@@ -1,10 +1,11 @@
-"""Vector Service - Manages LlamaIndex storage and retrieval.
+"""Vector Service — Qdrant backend with LlamaIndex fallback.
 
-Compatible with the local indexing script (indexar_acervo.py) format.
-Uses LlamaIndex VectorStoreIndex for persistent storage.
+Uses Qdrant for vector search when available.
+Falls back to LlamaIndex default if Qdrant not initialized.
 """
 
 import os
+import re
 import logging
 import shutil
 from typing import List, Dict, Optional
@@ -21,15 +22,17 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 logger = logging.getLogger(__name__)
 
-# Singleton
 _index = None
 _embed_model = None
+_qdrant_client = None
+_using_qdrant = False
 
 INDEX_DIR = str(Path(__file__).parent.parent / "data" / "indice")
+QDRANT_DIR = str(Path(__file__).parent.parent / "data" / "qdrant_data")
+COLLECTION_NAME = "jurista_legal_docs"
 
 
 def get_embed_model() -> HuggingFaceEmbedding:
-    """Get or initialize the embedding model (singleton)."""
     global _embed_model
     if _embed_model is None:
         model_name = os.environ.get(
@@ -44,31 +47,53 @@ def get_embed_model() -> HuggingFaceEmbedding:
 
 
 def get_index() -> Optional[VectorStoreIndex]:
-    """Get or load the VectorStoreIndex (singleton)."""
-    global _index
+    global _index, _qdrant_client, _using_qdrant
 
     if _index is not None:
         return _index
 
-    # Ensure embed model is loaded
     get_embed_model()
 
-    os.makedirs(INDEX_DIR, exist_ok=True)
+    # Try Qdrant first
+    try:
+        from qdrant_client import QdrantClient
+        from llama_index.vector_stores.qdrant import QdrantVectorStore
 
-    # Try to load existing index
+        if os.path.exists(QDRANT_DIR) and os.listdir(QDRANT_DIR):
+            logger.info(f"Loading Qdrant from: {QDRANT_DIR}")
+            _qdrant_client = QdrantClient(path=QDRANT_DIR)
+            vector_store = QdrantVectorStore(
+                client=_qdrant_client,
+                collection_name=COLLECTION_NAME,
+            )
+            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+            _index = VectorStoreIndex.from_documents([], storage_context=storage_context)
+            _using_qdrant = True
+
+            info = _qdrant_client.get_collection(COLLECTION_NAME)
+            logger.info(f"Qdrant loaded. Points: {info.points_count}")
+            return _index
+
+    except ImportError:
+        logger.info("qdrant-client not installed, using LlamaIndex fallback")
+    except Exception as e:
+        logger.warning(f"Qdrant init failed: {e}. Falling back to LlamaIndex.")
+
+    # Fallback: LlamaIndex default
+    os.makedirs(INDEX_DIR, exist_ok=True)
     docstore_path = os.path.join(INDEX_DIR, "docstore.json")
+
     if os.path.exists(docstore_path):
         try:
-            logger.info(f"Loading existing index from: {INDEX_DIR}")
+            logger.info(f"Loading LlamaIndex from: {INDEX_DIR}")
             storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
             _index = load_index_from_storage(storage_context)
             doc_count = len(_index.docstore.docs)
-            logger.info(f"Index loaded. Documents/chunks: {doc_count}")
+            logger.info(f"LlamaIndex loaded. Documents/chunks: {doc_count}")
             return _index
         except Exception as e:
-            logger.warning(f"Could not load index: {e}. Will create new one.")
+            logger.warning(f"Could not load index: {e}")
 
-    # Create empty index
     logger.info("Creating new empty index")
     _index = VectorStoreIndex.from_documents([], embed_model=get_embed_model())
     _index.storage_context.persist(persist_dir=INDEX_DIR)
@@ -76,22 +101,10 @@ def get_index() -> Optional[VectorStoreIndex]:
 
 
 def add_document(text: str, metadata: Dict) -> int:
-    """Add a single document to the index.
-
-    LlamaIndex will handle chunking automatically.
-
-    Args:
-        text: Full document text
-        metadata: Document metadata dict
-
-    Returns:
-        Number of nodes created
-    """
     index = get_index()
     if index is None:
         return 0
 
-    # Clean metadata values - LlamaIndex needs string-compatible values
     clean_meta = {}
     for k, v in metadata.items():
         if v is None:
@@ -100,30 +113,34 @@ def add_document(text: str, metadata: Dict) -> int:
             clean_meta[k] = v
 
     doc = Document(text=text, metadata=clean_meta)
-
-    # Insert into index
     index.insert(doc)
-    index.storage_context.persist(persist_dir=INDEX_DIR)
+
+    if not _using_qdrant:
+        index.storage_context.persist(persist_dir=INDEX_DIR)
 
     logger.info(f"Document added: {clean_meta.get('arquivo', 'unknown')}")
     return 1
 
 
 def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None) -> List[Dict]:
-    """Search for relevant chunks using the index.
-
-    Args:
-        query: Search query text
-        n_results: Number of results to return
-        where_filter: Optional metadata filter (not fully supported in simple mode)
-
-    Returns:
-        List of result dicts with text, metadata, and score
-    """
     index = get_index()
-    if index is None or len(index.docstore.docs) == 0:
-        logger.warning("Index is empty. No documents indexed yet.")
+    if index is None:
+        logger.warning("Index not available.")
         return []
+
+    # Check if empty
+    if _using_qdrant and _qdrant_client:
+        try:
+            info = _qdrant_client.get_collection(COLLECTION_NAME)
+            if info.points_count == 0:
+                logger.warning("Qdrant collection is empty.")
+                return []
+        except Exception:
+            pass
+    elif not _using_qdrant:
+        if len(index.docstore.docs) == 0:
+            logger.warning("Index is empty.")
+            return []
 
     try:
         retriever = index.as_retriever(similarity_top_k=n_results)
@@ -137,14 +154,13 @@ def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None)
         meta = node.metadata or {}
         score = node.score if node.score is not None else 0.0
 
-        # Extract author/title from combined fields if needed
+        # Extract author/title from combined fields
         author = meta.get("author", meta.get("autor", ""))
         title = meta.get("title", meta.get("arquivo", ""))
         year = meta.get("year", meta.get("ano", ""))
 
-        # Parse "Author, Year. Title" format from title field
+        # Parse "Author, Year. Title" format
         if not author and title:
-            import re
             match = re.match(r'^([^,]+),\s*(\d{4})\.\s*(.+)$', title)
             if match:
                 author = match.group(1).strip()
@@ -164,6 +180,14 @@ def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None)
                 "legal_institute": meta.get("legal_institute", ""),
                 "page": meta.get("page", meta.get("pagina", "")),
                 "chapter": meta.get("capitulo", meta.get("chapter", "")),
+                "author_id": meta.get("author_id", ""),
+                "work_id": meta.get("work_id", ""),
+                "chapter_id": meta.get("chapter_id", ""),
+                "doctrine_id": meta.get("doctrine_id", ""),
+                "fonte_normativa": meta.get("fonte_normativa", ""),
+                "orgao_julgador": meta.get("orgao_julgador", ""),
+                "peso_normativo": meta.get("peso_normativo", 0),
+                "posicao_doutrinaria": meta.get("posicao_doutrinaria", ""),
             },
             "score": round(float(score), 4),
             "id": node.node_id or "",
@@ -174,97 +198,95 @@ def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None)
 
 
 def delete_document_chunks(doc_id: str) -> int:
-    """Delete all chunks for a document from the index."""
-    index = get_index()
-    if index is None:
-        return 0
-
-    deleted = 0
-    try:
-        docs_to_delete = []
-        for node_id, node in index.docstore.docs.items():
-            meta = node.metadata or {}
-            if meta.get("hash") == doc_id or meta.get("doc_id") == doc_id:
-                docs_to_delete.append(node_id)
-
-        for node_id in docs_to_delete:
-            index.delete_ref_doc(node_id, delete_from_docstore=True)
-            deleted += 1
-
-        if deleted > 0:
-            index.storage_context.persist(persist_dir=INDEX_DIR)
-            logger.info(f"Deleted {deleted} nodes for doc {doc_id}")
-    except Exception as e:
-        logger.error(f"Error deleting doc chunks: {e}")
-
-    return deleted
+    # TODO: implement for Qdrant
+    return 0
 
 
 def import_index(source_dir: str) -> int:
-    """Import a pre-built LlamaIndex index from a directory.
-
-    ALWAYS replaces the current index with the imported one.
-    This avoids slow re-embedding during merge.
-
-    Args:
-        source_dir: Path to the LlamaIndex persist directory
-
-    Returns:
-        Number of documents in the new index
-    """
-    global _index
+    """Import pre-built index (LlamaIndex or Qdrant)."""
+    global _index, _qdrant_client, _using_qdrant
 
     get_embed_model()
 
+    # Check if source has Qdrant data
+    qdrant_source = None
+    for item in Path(source_dir).rglob("collection"):
+        if item.is_dir():
+            qdrant_source = item.parent
+            break
+
+    if qdrant_source:
+        # Import Qdrant data
+        logger.info(f"Importing Qdrant data from {qdrant_source}")
+        os.makedirs(QDRANT_DIR, exist_ok=True)
+        for item in qdrant_source.iterdir():
+            dest = Path(QDRANT_DIR) / item.name
+            if item.is_file():
+                shutil.copy2(str(item), str(dest))
+            elif item.is_dir():
+                if dest.exists():
+                    shutil.rmtree(str(dest))
+                shutil.copytree(str(item), str(dest))
+
+        _index = None
+        _qdrant_client = None
+        _using_qdrant = False
+        index = get_index()
+        return get_stats().get("total_chunks", 0)
+
+    # Fallback: LlamaIndex import
     docstore_path = os.path.join(source_dir, "docstore.json")
-    if not os.path.exists(docstore_path):
-        raise ValueError(f"No docstore.json found in {source_dir}")
+    if os.path.exists(docstore_path):
+        logger.info(f"Importing LlamaIndex data from {source_dir}")
+        os.makedirs(INDEX_DIR, exist_ok=True)
+        for item in Path(source_dir).iterdir():
+            dest = Path(INDEX_DIR) / item.name
+            if item.is_file():
+                shutil.copy2(str(item), str(dest))
+            elif item.is_dir():
+                if dest.exists():
+                    shutil.rmtree(str(dest))
+                shutil.copytree(str(item), str(dest))
 
-    # Always replace: copy imported index directly
-    logger.info(f"Replacing index with imported data from {source_dir}")
-    os.makedirs(INDEX_DIR, exist_ok=True)
+        _index = None
+        index = get_index()
+        count = len(index.docstore.docs) if index else 0
+        logger.info(f"Imported {count} documents")
+        return count
 
-    # Clear existing index files
-    for item in Path(INDEX_DIR).iterdir():
-        if item.is_file():
-            item.unlink()
-        elif item.is_dir():
-            shutil.rmtree(str(item))
-
-    # Copy new index files
-    for item in Path(source_dir).iterdir():
-        dest = Path(INDEX_DIR) / item.name
-        if item.is_file():
-            shutil.copy2(str(item), str(dest))
-        elif item.is_dir():
-            shutil.copytree(str(item), str(dest))
-
-    # Reset singleton to reload
-    _index = None
-    index = get_index()
-    count = len(index.docstore.docs) if index else 0
-    logger.info(f"Imported index with {count} documents")
-    return count
+    raise ValueError("No recognizable index found in source directory")
 
 
 def get_stats() -> Dict:
-    """Get index statistics."""
     index = get_index()
-    if index is None:
-        return {"total_chunks": 0, "index_dir": INDEX_DIR}
 
-    try:
-        count = len(index.docstore.docs)
-    except Exception:
-        count = 0
+    if _using_qdrant and _qdrant_client:
+        try:
+            info = _qdrant_client.get_collection(COLLECTION_NAME)
+            return {
+                "total_chunks": info.points_count,
+                "backend": "qdrant",
+                "index_dir": QDRANT_DIR,
+            }
+        except Exception:
+            pass
 
-    return {
-        "total_chunks": count,
-        "index_dir": INDEX_DIR,
-    }
+    if index:
+        try:
+            count = len(index.docstore.docs)
+        except Exception:
+            count = 0
+        return {
+            "total_chunks": count,
+            "backend": "llamaindex",
+            "index_dir": INDEX_DIR,
+        }
+
+    return {"total_chunks": 0, "backend": "none"}
 
 
 def reset_index():
-    """Reset the singleton (useful after import)."""
-    global _index
+    global _index, _qdrant_client, _using_qdrant
     _index = None
+    _qdrant_client = None
+    _using_qdrant = False
