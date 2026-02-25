@@ -1,0 +1,50 @@
+{
+  "nome_norma": "Código Civil",
+  "numero": "Lei 10.406/2002",
+  "area": "Direito Civil",
+  "hierarquia": "lei_federal",
+  "vigencia": "ativa",
+  "fonte": "planalto.gov.br",
+  "artigos": [
+    {
+      "artigo": "1",
+      "texto": "Toda pessoa é capaz de direitos e deveres na ordem civil."
+    },
+    {
+      "artigo": "2",
+      "texto": "A personalidade civil da pessoa começa do nascimento com vida; mas a lei põe a salvo, desde a concepção, os direitos do nascituro."
+    },
+    {
+      "artigo": "186",
+      "texto": "Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem, ainda que exclusivamente moral, comete ato ilícito."
+    },
+    {
+      "artigo": "187",
+      "texto": "Também comete ato ilícito o titular de um direito que, ao exercê-lo, excede manifestamente os limites impostos pelo seu fim econômico ou social, pela boa-fé ou pelos bons costumes."
+    },
+    {
+      "artigo": "389",
+      "texto": "Não cumprida a obrigação, responde o devedor por perdas e danos, mais juros e atualização monetária segundo índices oficiais regularmente estabelecidos, e honorários de advogado."
+    },
+    {
+      "artigo": "441",
+      "texto": "A coisa recebida em virtude de contrato comutativo pode ser enjeitada por vícios ou defeitos ocultos, que a tornem imprópria ao uso a que é destinada, ou lhe diminuam o valor."
+    },
+    {
+      "artigo": "442",
+      "texto": "Em vez de rejeitar a coisa, redibindo o contrato (art. 441), pode o adquirente reclamar abatimento no preço."
+    },
+    {
+      "artigo": "443",
+      "texto": "Se o alienante conhecia o vício ou defeito da coisa, restituirá o que recebeu com perdas e danos; se o não conhecia, tão-somente restituirá o valor recebido, mais as despesas do contrato."
+    },
+    {
+      "artigo": "927",
+      "texto": "Aquele que, por ato ilícito (arts. 186 e 187), causar dano a outrem, fica obrigado a repará-lo. Parágrafo único. Haverá obrigação de reparar o dano, independentemente de culpa, nos casos especificados em lei, ou quando a atividade normalmente desenvolvida pelo autor do dano implicar, por sua natureza, risco para os direitos de outrem."
+    },
+    {
+      "artigo": "944",
+      "texto": "A indenização mede-se pela extensão do dano. Parágrafo único. Se houver excessiva desproporção entre a gravidade da culpa e o dano, poderá o juiz reduzir, eqüitativamente, a indenização."
+    }
+  ]
+}
