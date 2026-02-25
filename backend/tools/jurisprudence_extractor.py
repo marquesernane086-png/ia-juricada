@@ -182,7 +182,8 @@ def _extrair_orgao_julgador(texto: str) -> str:
 
     t_lower = texto[:3000].lower()
     for pattern in patterns:
-        match = re.search(pattern, t_lower):
+        match = re.search(pattern, t_lower)
+        if match:
             return match.group(1).strip().title()
 
     return "desconhecido"
