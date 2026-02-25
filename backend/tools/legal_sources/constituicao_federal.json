@@ -1,0 +1,42 @@
+{
+  "nome_norma": "Constituição Federal",
+  "numero": "CF/1988",
+  "area": "Direito Constitucional",
+  "hierarquia": "constituicao",
+  "vigencia": "ativa",
+  "fonte": "planalto.gov.br",
+  "artigos": [
+    {
+      "artigo": "1",
+      "texto": "A República Federativa do Brasil, formada pela união indissolúvel dos Estados e Municípios e do Distrito Federal, constitui-se em Estado Democrático de Direito e tem como fundamentos: I - a soberania; II - a cidadania; III - a dignidade da pessoa humana; IV - os valores sociais do trabalho e da livre iniciativa; V - o pluralismo político. Parágrafo único. Todo o poder emana do povo, que o exerce por meio de representantes eleitos ou diretamente, nos termos desta Constituição."
+    },
+    {
+      "artigo": "5",
+      "texto": "Todos são iguais perante a lei, sem distinção de qualquer natureza, garantindo-se aos brasileiros e aos estrangeiros residentes no País a inviolabilidade do direito à vida, à liberdade, à igualdade, à segurança e à propriedade."
+    },
+    {
+      "artigo": "5-V",
+      "texto": "V - é assegurado o direito de resposta, proporcional ao agravo, além da indenização por dano material, moral ou à imagem;"
+    },
+    {
+      "artigo": "5-X",
+      "texto": "X - são invioláveis a intimidade, a vida privada, a honra e a imagem das pessoas, assegurado o direito a indenização pelo dano material ou moral decorrente de sua violação;"
+    },
+    {
+      "artigo": "5-XXXV",
+      "texto": "XXXV - a lei não excluirá da apreciação do Poder Judiciário lesão ou ameaça a direito;"
+    },
+    {
+      "artigo": "5-LXVIII",
+      "texto": "LXVIII - conceder-se-á habeas corpus sempre que alguém sofrer ou se achar ameaçado de sofrer violência ou coação em sua liberdade de locomoção, por ilegalidade ou abuso de poder;"
+    },
+    {
+      "artigo": "37",
+      "texto": "A administração pública direta e indireta de qualquer dos Poderes da União, dos Estados, do Distrito Federal e dos Municípios obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência."
+    },
+    {
+      "artigo": "102",
+      "texto": "Compete ao Supremo Tribunal Federal, precipuamente, a guarda da Constituição."
+    }
+  ]
+}
