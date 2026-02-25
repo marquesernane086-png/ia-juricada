@@ -1,0 +1,86 @@
+{
+  "nome_norma": "Constituição Federal",
+  "numero": "CF/1988",
+  "area": "Direito Constitucional",
+  "hierarquia": "constituicao",
+  "vigencia": "ativa",
+  "fonte": "planalto.gov.br",
+  "artigos": [
+    {
+      "artigo": "1",
+      "texto": "A República Federativa do Brasil, formada pela união indissolúvel dos Estados e Municípios e do Distrito Federal, constitui-se em Estado Democrático de Direito e tem como fundamentos: I - a soberania; II - a cidadania; III - a dignidade da pessoa humana; IV - os valores sociais do trabalho e da livre iniciativa; V - o pluralismo político."
+    },
+    {
+      "artigo": "2",
+      "texto": "São Poderes da União, independentes e harmônicos entre si, o Legislativo, o Executivo e o Judiciário."
+    },
+    {
+      "artigo": "3",
+      "texto": "Constituem objetivos fundamentais da República Federativa do Brasil: I - construir uma sociedade livre, justa e solidária; II - garantir o desenvolvimento nacional; III - erradicar a pobreza e a marginalização e reduzir as desigualdades sociais e regionais; IV - promover o bem de todos, sem preconceitos de origem, raça, sexo, cor, idade e quaisquer outras formas de discriminação."
+    },
+    {
+      "artigo": "5",
+      "texto": "Todos são iguais perante a lei, sem distinção de qualquer natureza, garantindo-se aos brasileiros e aos estrangeiros residentes no País a inviolabilidade do direito à vida, à liberdade, à igualdade, à segurança e à propriedade."
+    },
+    {
+      "artigo": "5-II",
+      "texto": "II - ninguém será obrigado a fazer ou deixar de fazer alguma coisa senão em virtude de lei;"
+    },
+    {
+      "artigo": "5-V",
+      "texto": "V - é assegurado o direito de resposta, proporcional ao agravo, além da indenização por dano material, moral ou à imagem;"
+    },
+    {
+      "artigo": "5-X",
+      "texto": "X - são invioláveis a intimidade, a vida privada, a honra e a imagem das pessoas, assegurado o direito a indenização pelo dano material ou moral decorrente de sua violação;"
+    },
+    {
+      "artigo": "5-XXXII",
+      "texto": "XXXII - o Estado promoverá, na forma da lei, a defesa do consumidor;"
+    },
+    {
+      "artigo": "5-XXXV",
+      "texto": "XXXV - a lei não excluirá da apreciação do Poder Judiciário lesão ou ameaça a direito;"
+    },
+    {
+      "artigo": "5-XXXVI",
+      "texto": "XXXVI - a lei não prejudicará o direito adquirido, o ato jurídico perfeito e a coisa julgada;"
+    },
+    {
+      "artigo": "5-XXXIX",
+      "texto": "XXXIX - não há crime sem lei anterior que o defina, nem pena sem prévia cominação legal;"
+    },
+    {
+      "artigo": "5-LIV",
+      "texto": "LIV - ninguém será privado da liberdade ou de seus bens sem o devido processo legal;"
+    },
+    {
+      "artigo": "5-LV",
+      "texto": "LV - aos litigantes, em processo judicial ou administrativo, e aos acusados em geral são assegurados o contraditório e ampla defesa, com os meios e recursos a ela inerentes;"
+    },
+    {
+      "artigo": "5-LXVIII",
+      "texto": "LXVIII - conceder-se-á habeas corpus sempre que alguém sofrer ou se achar ameaçado de sofrer violência ou coação em sua liberdade de locomoção, por ilegalidade ou abuso de poder;"
+    },
+    {
+      "artigo": "37",
+      "texto": "A administração pública direta e indireta de qualquer dos Poderes da União, dos Estados, do Distrito Federal e dos Municípios obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência."
+    },
+    {
+      "artigo": "37-6",
+      "texto": "§6º As pessoas jurídicas de direito público e as de direito privado prestadoras de serviços públicos responderão pelos danos que seus agentes, nessa qualidade, causarem a terceiros, assegurado o direito de regresso contra o responsável nos casos de dolo ou culpa."
+    },
+    {
+      "artigo": "102",
+      "texto": "Compete ao Supremo Tribunal Federal, precipuamente, a guarda da Constituição."
+    },
+    {
+      "artigo": "105",
+      "texto": "Compete ao Superior Tribunal de Justiça: III - julgar, em recurso especial, as causas decididas, em única ou última instância, pelos Tribunais Regionais Federais ou pelos tribunais dos Estados, do Distrito Federal e Territórios, quando a decisão recorrida: a) contrariar tratado ou lei federal, ou negar-lhes vigência; b) julgar válido ato de governo local contestado em face de lei federal; c) der a lei federal interpretação divergente da que lhe haja atribuído outro tribunal."
+    },
+    {
+      "artigo": "170",
+      "texto": "A ordem econômica, fundada na valorização do trabalho humano e na livre iniciativa, tem por fim assegurar a todos existência digna, conforme os ditames da justiça social, observados os seguintes princípios: V - defesa do consumidor."
+    }
+  ]
+}
