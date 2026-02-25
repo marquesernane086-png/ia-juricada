@@ -83,15 +83,15 @@ def search(query: str, n_results: int = 10, tribunal: Optional[str] = None) -> L
                 must=[FieldCondition(key="tribunal", match=MatchValue(value=tribunal))]
             )
 
-        results = client.search(
+        results = client.query_points(
             collection_name=COLLECTION_NAME,
-            query_vector=query_vector,
+            query=query_vector,
             limit=n_results,
             query_filter=query_filter,
         )
 
         formatted = []
-        for point in results:
+        for point in results.points:
             payload = point.payload or {}
             formatted.append({
                 "text": payload.get("text", ""),
