@@ -1,18 +1,16 @@
-"""JurisprudenceAI — Indexador de Jurisprudência
+"""Indexador de Jurisprudencia — STF, STJ, TRFs, TJs
 
-Subsistema independente do DoctrineAI.
-Indexa decisões judiciais em collection Qdrant separada.
+Indexa decisoes judiciais na collection jurista_legal_docs.
+Cada decisao = 1+ vetores (ementa separada do voto).
 
 Uso:
     python indexar_jurisprudencia.py
 
-Estrutura esperada:
-    data_jurisprudencia/
-        STJ/
-            decisao1.pdf
-            decisao2.txt
-        STF/
-            decisao3.pdf
+Entrada:
+    data_jurisprudencia/STJ/*.pdf
+    data_jurisprudencia/STJ/*.txt
+    data_jurisprudencia/STJ/*.json
+    data_jurisprudencia/STF/*.pdf
 """
 
 import os
@@ -26,14 +24,19 @@ from pathlib import Path
 from datetime import datetime
 
 try:
-    import fitz
+    from sentence_transformers import SentenceTransformer
     from qdrant_client import QdrantClient
     from qdrant_client.models import VectorParams, Distance, PointStruct
-    from sentence_transformers import SentenceTransformer
-    from jurisprudence_extractor import extrair_metadados_decisao, extrair_ementa
+    import fitz
 except ImportError as e:
     print(f"Dependencia faltando: {e}")
-    print("pip install PyMuPDF qdrant-client sentence-transformers")
+    print("pip install sentence-transformers qdrant-client PyMuPDF")
+    sys.exit(1)
+
+try:
+    from jurisprudence_extractor import extrair_metadados_decisao, extrair_ementa
+except ImportError:
+    print("Coloque jurisprudence_extractor.py na mesma pasta.")
     sys.exit(1)
 
 # ============================================================
@@ -42,12 +45,21 @@ except ImportError as e:
 
 PASTA_JURISPRUDENCIA = "data_jurisprudencia"
 QDRANT_DIR = "qdrant_data"
-COLLECTION_NAME = "jurista_jurisprudencia"
+COLLECTION_NAME = "jurista_legal_docs"
 EMBEDDING_DIM = 384
 CHUNK_SIZE = 400
 CHUNK_OVERLAP = 80
-ARQUIVO_CONTROLE = "controle_jurisprudencia.json"
-BATCH_SIZE = 100
+BATCH_SIZE = 200
+CHECKPOINT_FILE = "controle_jurisprudencia.json"
+
+PESOS_TRIBUNAL = {
+    "STF": 0.92,
+    "STJ": 0.90,
+    "TST": 0.90,
+    "TSE": 0.88,
+    "TRF": 0.85, "TRF1": 0.85, "TRF2": 0.85, "TRF3": 0.85, "TRF4": 0.85, "TRF5": 0.85,
+    "TJ": 0.85, "TJSP": 0.85, "TJRJ": 0.85, "TJMG": 0.85,
+}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,23 +70,18 @@ logging.basicConfig(
         logging.FileHandler("indexacao_jurisprudencia.log", encoding="utf-8"),
     ]
 )
-logger = logging.getLogger("JurisprudenceAI")
+logger = logging.getLogger("JurisIndexer")
 
-# Modelo de embeddings (mesmo da doutrina)
-logger.info("Carregando modelo de embeddings...")
-model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-logger.info("Modelo carregado!")
-
-# Controle
-if os.path.exists(ARQUIVO_CONTROLE):
-    with open(ARQUIVO_CONTROLE, "r", encoding="utf-8") as f:
+# Checkpoint
+if os.path.exists(CHECKPOINT_FILE):
+    with open(CHECKPOINT_FILE, "r", encoding="utf-8") as f:
         controle = json.load(f)
 else:
     controle = {}
 
 
 def salvar_controle():
-    with open(ARQUIVO_CONTROLE, "w", encoding="utf-8") as f:
+    with open(CHECKPOINT_FILE, "w", encoding="utf-8") as f:
         json.dump(controle, f, indent=2, ensure_ascii=False)
 
 
@@ -89,10 +96,6 @@ def hash_arquivo(path):
     return sha.hexdigest()
 
 
-# ============================================================
-# LEITURA
-# ============================================================
-
 def ler_pdf(path):
     texto = ""
     with fitz.open(path) as doc:
@@ -106,53 +109,46 @@ def ler_txt(path):
         return f.read()
 
 
-# ============================================================
-# CHUNKING JURISPRUDENCIAL (400 chars, corte em paragrafo)
-# ============================================================
+def ler_json_decisao(path):
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data.get("texto", data.get("ementa", json.dumps(data, ensure_ascii=False)))
 
-def criar_chunks_jurisprudencia(texto, metadata_base, is_ementa=False):
-    """Chunks especializados para jurisprudencia."""
+
+def criar_chunks(texto, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
     chunks = []
-
-    if len(texto.strip()) < 50:
-        return chunks
-
-    avanco = CHUNK_SIZE - CHUNK_OVERLAP
-
-    if len(texto) <= CHUNK_SIZE + 50:
-        meta = {**metadata_base, "is_ementa": is_ementa}
-        embedding = model.encode(texto.strip(), normalize_embeddings=True)
-        chunks.append({"text": texto.strip(), "metadata": meta, "embedding": embedding.tolist()})
-        return chunks
-
+    avanco = chunk_size - overlap
     inicio = 0
     while inicio < len(texto):
-        fim = min(inicio + CHUNK_SIZE, len(texto))
-
-        # Cortar em paragrafo ou ponto
-        if fim < len(texto):
-            for sep in ["\n\n", "\n", ". ", "; "]:
-                pos = texto.rfind(sep, inicio + avanco // 2, fim + 30)
-                if pos > inicio + avanco // 2:
-                    fim = pos + len(sep)
-                    break
-
+        fim = min(inicio + chunk_size, len(texto))
         trecho = texto[inicio:fim].strip()
         if len(trecho) >= 40:
-            meta = {**metadata_base, "is_ementa": is_ementa}
-            embedding = model.encode(trecho, normalize_embeddings=True)
-            chunks.append({"text": trecho, "metadata": meta, "embedding": embedding.tolist()})
-
+            chunks.append(trecho)
         inicio += avanco
-
     return chunks
 
 
+def separar_secoes(texto):
+    """Separa ementa, voto e dispositivo."""
+    ementa, resto = extrair_ementa(texto)
+    secoes = {"ementa": ementa, "texto_integral": resto}
+    # Detectar voto
+    voto_match = re.search(r'(?i)(VOTO|V\s*O\s*T\s*O)(.*?)(?=DISPOSITIVO|ACÓRDÃO|$)', resto, re.DOTALL)
+    if voto_match:
+        secoes["voto"] = voto_match.group(2).strip()[:5000]
+    disp_match = re.search(r'(?i)(DISPOSITIVO|DECISÃO)(.*?)$', resto, re.DOTALL)
+    if disp_match:
+        secoes["dispositivo"] = disp_match.group(2).strip()[:2000]
+    return secoes
+
+
 # ============================================================
-# QDRANT
+# MODELO E QDRANT
 # ============================================================
 
-logger.info(f"Inicializando Qdrant em: {QDRANT_DIR}")
+logger.info("Carregando modelo...")
+model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+
 os.makedirs(QDRANT_DIR, exist_ok=True)
 client = QdrantClient(path=QDRANT_DIR)
 
@@ -162,50 +158,40 @@ if COLLECTION_NAME not in collections:
         collection_name=COLLECTION_NAME,
         vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
     )
-    logger.info(f"Collection '{COLLECTION_NAME}' criada")
-else:
-    info = client.get_collection(COLLECTION_NAME)
-    logger.info(f"Collection existente: {info.points_count} pontos")
 
+try:
+    info = client.get_collection(COLLECTION_NAME)
+    point_id = info.points_count
+except Exception:
+    point_id = 0
 
 # ============================================================
-# PROCESSAMENTO
+# PROCESSAR
 # ============================================================
 
 if not os.path.exists(PASTA_JURISPRUDENCIA):
-    os.makedirs(os.path.join(PASTA_JURISPRUDENCIA, "STJ"), exist_ok=True)
-    os.makedirs(os.path.join(PASTA_JURISPRUDENCIA, "STF"), exist_ok=True)
-    logger.info(f"Pasta criada: {PASTA_JURISPRUDENCIA}/STJ e /STF")
-    logger.info("Coloque os arquivos PDF/TXT nas pastas e rode novamente.")
+    for t in ["STJ", "STF", "TRF", "TJ"]:
+        os.makedirs(os.path.join(PASTA_JURISPRUDENCIA, t), exist_ok=True)
+    logger.info(f"Pastas criadas em {PASTA_JURISPRUDENCIA}/")
+    logger.info("Coloque PDF/TXT/JSON nas pastas e rode novamente.")
     sys.exit(0)
 
-# Encontrar arquivos
 todos = []
 for raiz, _, arquivos in os.walk(PASTA_JURISPRUDENCIA):
     for arq in sorted(arquivos):
         ext = arq.lower()
-        if ext.endswith(".pdf") or ext.endswith(".txt"):
+        if ext.endswith((".pdf", ".txt", ".json")):
             todos.append(os.path.join(raiz, arq))
 
 logger.info(f"Decisoes encontradas: {len(todos)}")
 if not todos:
-    logger.info("Nenhuma decisao encontrada.")
+    logger.info("Nenhuma decisao.")
     sys.exit(0)
 
 start_time = time.time()
 total_chunks = 0
 processados = 0
-pulados = 0
-erros = 0
-point_id = 0
 batch = []
-
-# Pegar ultimo point_id do Qdrant
-try:
-    info = client.get_collection(COLLECTION_NAME)
-    point_id = info.points_count
-except Exception:
-    pass
 
 for idx, caminho in enumerate(todos):
     arquivo = os.path.basename(caminho)
@@ -213,109 +199,90 @@ for idx, caminho in enumerate(todos):
     file_hash = hash_arquivo(caminho)
 
     if file_hash in controle:
-        pulados += 1
         continue
 
     logger.info(f"[{idx+1}/{len(todos)}] {arquivo}")
 
     try:
-        # Ler
         if arquivo.lower().endswith(".pdf"):
             texto = ler_pdf(caminho)
+        elif arquivo.lower().endswith(".json"):
+            texto = ler_json_decisao(caminho)
         else:
             texto = ler_txt(caminho)
 
         if len(texto.strip()) < 100:
-            logger.warning("  Texto insuficiente")
-            erros += 1
             continue
 
-        # Extrair metadados
         meta = extrair_metadados_decisao(texto, arquivo)
-
-        # Se tribunal nao detectado, usar nome da pasta
-        if meta["tribunal"] == "desconhecido" and pasta_tribunal.upper() in ["STJ", "STF", "TST", "TRF"]:
+        if meta["tribunal"] == "desconhecido" and pasta_tribunal.upper() in PESOS_TRIBUNAL:
             meta["tribunal"] = pasta_tribunal.upper()
 
-        logger.info(f"  Tribunal: {meta['tribunal']} | Processo: {meta['numero_processo']} | Relator: {meta['relator']}")
+        secoes = separar_secoes(texto)
+        peso = PESOS_TRIBUNAL.get(meta["tribunal"], 0.85)
 
-        # Separar ementa
-        ementa, texto_sem_ementa = extrair_ementa(texto)
+        logger.info(f"  {meta['tribunal']} | {meta['numero_processo']} | {meta['relator']}")
 
-        metadata_base = {
-            "source_type": "jurisprudencia",
+        base_payload = {
+            "tipo_documento": "jurisprudencia",
             "tribunal": meta["tribunal"],
-            "processo": meta["numero_processo"],
-            "classe": meta["classe_processual"],
-            "relator": meta["relator"],
-            "data_julgamento": meta["data_julgamento"],
             "orgao_julgador": meta["orgao_julgador"],
+            "relator": meta["relator"],
+            "numero_processo": meta["numero_processo"],
+            "classe_processual": meta["classe_processual"],
+            "data_julgamento": meta["data_julgamento"],
             "tipo_decisao": meta["tipo_decisao"],
-            "peso_normativo": 3,
-            "hierarquia": "precedente",
+            "fonte_normativa": "jurisprudencia",
+            "peso_normativo": peso,
             "arquivo": arquivo,
             "hash": file_hash,
         }
 
-        # Chunks da ementa (separados)
-        chunks_ementa = []
-        if ementa:
-            chunks_ementa = criar_chunks_jurisprudencia(ementa, metadata_base, is_ementa=True)
+        chunks_decisao = 0
 
-        # Chunks do texto integral
-        chunks_texto = criar_chunks_jurisprudencia(texto_sem_ementa, metadata_base, is_ementa=False)
+        # Ementa como chunks separados
+        if secoes.get("ementa"):
+            for chunk in criar_chunks(secoes["ementa"]):
+                emb = model.encode(chunk, normalize_embeddings=True)
+                point_id += 1
+                payload = {**base_payload, "texto": chunk, "secao": "ementa", "is_ementa": True}
+                batch.append(PointStruct(id=point_id, vector=emb.tolist(), payload=payload))
+                chunks_decisao += 1
 
-        all_chunks = chunks_ementa + chunks_texto
-        total_chunks += len(all_chunks)
-
-        # Inserir no Qdrant
-        for chunk in all_chunks:
+        # Texto integral como chunks
+        texto_body = secoes.get("voto", "") or secoes.get("texto_integral", texto)
+        for chunk in criar_chunks(texto_body):
+            emb = model.encode(chunk, normalize_embeddings=True)
             point_id += 1
-            payload = {**chunk["metadata"], "text": chunk["text"]}
-            for k, v in payload.items():
-                if v is None:
-                    payload[k] = ""
-            batch.append(PointStruct(id=point_id, vector=chunk["embedding"], payload=payload))
+            payload = {**base_payload, "texto": chunk, "secao": "voto", "is_ementa": False}
+            batch.append(PointStruct(id=point_id, vector=emb.tolist(), payload=payload))
+            chunks_decisao += 1
 
         if len(batch) >= BATCH_SIZE:
             client.upsert(collection_name=COLLECTION_NAME, points=batch)
+            total_chunks += len(batch)
             batch = []
 
         processados += 1
-
         controle[file_hash] = {
-            "arquivo": arquivo,
-            "tribunal": meta["tribunal"],
-            "processo": meta["numero_processo"],
-            "chunks": len(all_chunks),
+            "arquivo": arquivo, "tribunal": meta["tribunal"],
+            "processo": meta["numero_processo"], "chunks": chunks_decisao,
             "indexado_em": datetime.now().isoformat(),
         }
         salvar_controle()
-
-        logger.info(f"  Chunks: {len(all_chunks)} (ementa: {len(chunks_ementa)}, texto: {len(chunks_texto)})")
+        logger.info(f"  Chunks: {chunks_decisao}")
 
     except Exception as e:
-        erros += 1
         logger.error(f"  ERRO: {e}")
 
-# Batch final
 if batch:
     client.upsert(collection_name=COLLECTION_NAME, points=batch)
+    total_chunks += len(batch)
 
 try:
     client.close()
 except Exception:
     pass
 
-elapsed = time.time() - start_time
-
-logger.info("")
-logger.info("=" * 60)
-logger.info("INDEXACAO JURISPRUDENCIA CONCLUIDA")
-logger.info("=" * 60)
-logger.info(f"Decisoes processadas: {processados}")
-logger.info(f"Puladas (ja indexadas): {pulados}")
-logger.info(f"Erros: {erros}")
-logger.info(f"Total chunks: {total_chunks}")
-logger.info(f"Tempo: {elapsed:.0f}s")
-logger.info(f"Collection: {COLLECTION_NAME}")
+logger.info(f"")
+logger.info(f"CONCLUIDO: {processados} decisoes, {total_chunks} chunks em {time.time()-start_time:.0f}s")
