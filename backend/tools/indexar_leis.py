@@ -161,7 +161,7 @@ for json_path in json_files:
     artigos = lei.get("artigos", [])
 
     if not artigos:
-        logger.warning(f"  Sem artigos")
+        logger.warning("  Sem artigos")
         continue
 
     logger.info(f"  Norma: {nome_norma} ({numero})")
@@ -247,7 +247,7 @@ for json_path in json_files:
     salvar_checkpoint()
 
     logger.info(f"  Indexados: {artigos_indexados} artigos")
-    logger.info(f"  Checkpoint salvo")
+    logger.info("  Checkpoint salvo")
 
 # ============================================================
 # FINALIZAR
