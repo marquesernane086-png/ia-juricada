@@ -69,15 +69,15 @@ def search_articles(query: str, n_results: int = 10, area: Optional[str] = None)
                 must=[FieldCondition(key="area", match=MatchValue(value=area))]
             )
 
-        results = client.search(
+        results = client.query_points(
             collection_name=COLLECTION_NAME,
-            query_vector=query_vector,
+            query=query_vector,
             limit=n_results,
             query_filter=query_filter,
         )
 
         formatted = []
-        for point in results:
+        for point in results.points:
             p = point.payload or {}
             formatted.append({
                 "artigo": p.get("artigo", ""),
