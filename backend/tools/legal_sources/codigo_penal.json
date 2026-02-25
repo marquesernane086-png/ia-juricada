@@ -1,0 +1,118 @@
+{
+  "nome_norma": "Código Penal",
+  "numero": "Decreto-Lei 2.848/1940",
+  "area": "Direito Penal",
+  "hierarquia": "lei_federal",
+  "vigencia": "ativa",
+  "fonte": "planalto.gov.br",
+  "artigos": [
+    {
+      "artigo": "1",
+      "texto": "Não há crime sem lei anterior que o defina. Não há pena sem prévia cominação legal."
+    },
+    {
+      "artigo": "2",
+      "texto": "Ninguém pode ser punido por fato que lei posterior deixa de considerar crime, cessando em virtude dela a execução e os efeitos penais da sentença condenatória. Parágrafo único - A lei posterior, que de qualquer modo favorecer o agente, aplica-se aos fatos anteriores, ainda que decididos por sentença condenatória transitada em julgado."
+    },
+    {
+      "artigo": "3",
+      "texto": "A lei excepcional ou temporária, embora decorrido o período de sua duração ou cessadas as circunstâncias que a determinaram, aplica-se ao fato praticado durante sua vigência."
+    },
+    {
+      "artigo": "4",
+      "texto": "Considera-se praticado o crime no momento da ação ou omissão, ainda que outro seja o momento do resultado."
+    },
+    {
+      "artigo": "5",
+      "texto": "Aplica-se a lei brasileira, sem prejuízo de convenções, tratados e regras de direito internacional, ao crime cometido no território nacional."
+    },
+    {
+      "artigo": "13",
+      "texto": "O resultado, de que depende a existência do crime, somente é imputável a quem lhe deu causa. Considera-se causa a ação ou omissão sem a qual o resultado não teria ocorrido."
+    },
+    {
+      "artigo": "14",
+      "texto": "Diz-se o crime: I - consumado, quando nele se reúnem todos os elementos de sua definição legal; II - tentado, quando, iniciada a execução, não se consuma por circunstâncias alheias à vontade do agente. Parágrafo único - Salvo disposição em contrário, pune-se a tentativa com a pena correspondente ao crime consumado, diminuída de um a dois terços."
+    },
+    {
+      "artigo": "18",
+      "texto": "Diz-se o crime: I - doloso, quando o agente quis o resultado ou assumiu o risco de produzi-lo; II - culposo, quando o agente deu causa ao resultado por imprudência, negligência ou imperícia. Parágrafo único - Salvo os casos expressos em lei, ninguém pode ser punido por fato previsto como crime, senão quando o pratica dolosamente."
+    },
+    {
+      "artigo": "23",
+      "texto": "Não há crime quando o agente pratica o fato: I - em estado de necessidade; II - em legítima defesa; III - em estrito cumprimento de dever legal ou no exercício regular de direito. Parágrafo único - O agente, em qualquer das hipóteses deste artigo, responderá pelo excesso doloso ou culposo."
+    },
+    {
+      "artigo": "24",
+      "texto": "Considera-se em estado de necessidade quem pratica o fato para salvar de perigo atual, que não provocou por sua vontade, nem podia de outro modo evitar, direito próprio ou alheio, cujo sacrifício, nas circunstâncias, não era razoável exigir-se."
+    },
+    {
+      "artigo": "25",
+      "texto": "Entende-se em legítima defesa quem, usando moderadamente dos meios necessários, repele injusta agressão, atual ou iminente, a direito seu ou de outrem."
+    },
+    {
+      "artigo": "26",
+      "texto": "É isento de pena o agente que, por doença mental ou desenvolvimento mental incompleto ou retardado, era, ao tempo da ação ou da omissão, inteiramente incapaz de entender o caráter ilícito do fato ou de determinar-se de acordo com esse entendimento."
+    },
+    {
+      "artigo": "27",
+      "texto": "Os menores de 18 (dezoito) anos são penalmente inimputáveis, ficando sujeitos às normas estabelecidas na legislação especial."
+    },
+    {
+      "artigo": "29",
+      "texto": "Quem, de qualquer modo, concorre para o crime incide nas penas a este cominadas, na medida de sua culpabilidade."
+    },
+    {
+      "artigo": "32",
+      "texto": "As penas são: I - privativas de liberdade; II - restritivas de direitos; III - de multa."
+    },
+    {
+      "artigo": "33",
+      "texto": "A pena de reclusão deve ser cumprida em regime fechado, semi-aberto ou aberto. A de detenção, em regime semi-aberto, ou aberto, salvo necessidade de transferência a regime fechado."
+    },
+    {
+      "artigo": "59",
+      "texto": "O juiz, atendendo à culpabilidade, aos antecedentes, à conduta social, à personalidade do agente, aos motivos, às circunstâncias e consequências do crime, bem como ao comportamento da vítima, estabelecerá, conforme seja necessário e suficiente para reprovação e prevenção do crime."
+    },
+    {
+      "artigo": "121",
+      "texto": "Matar alguém: Pena - reclusão, de seis a vinte anos."
+    },
+    {
+      "artigo": "129",
+      "texto": "Ofender a integridade corporal ou a saúde de outrem: Pena - detenção, de três meses a um ano."
+    },
+    {
+      "artigo": "155",
+      "texto": "Subtrair, para si ou para outrem, coisa alheia móvel: Pena - reclusão, de um a quatro anos, e multa."
+    },
+    {
+      "artigo": "157",
+      "texto": "Subtrair coisa móvel alheia, para si ou para outrem, mediante grave ameaça ou violência a pessoa, ou depois de havê-la, por qualquer meio, reduzido à impossibilidade de resistência: Pena - reclusão, de quatro a dez anos, e multa."
+    },
+    {
+      "artigo": "171",
+      "texto": "Obter, para si ou para outrem, vantagem ilícita, em prejuízo alheio, induzindo ou mantendo alguém em erro, mediante artifício, ardil, ou qualquer outro meio fraudulento: Pena - reclusão, de um a cinco anos, e multa."
+    },
+    {
+      "artigo": "213",
+      "texto": "Constranger alguém, mediante violência ou grave ameaça, a ter conjunção carnal ou a praticar ou permitir que com ele se pratique outro ato libidinoso: Pena - reclusão, de 6 (seis) a 10 (dez) anos."
+    },
+    {
+      "artigo": "312",
+      "texto": "Apropriar-se o funcionário público de dinheiro, valor ou qualquer outro bem móvel, público ou particular, de que tem a posse em razão do cargo, ou desviá-lo, em proveito próprio ou alheio: Pena - reclusão, de dois a doze anos, e multa."
+    },
+    {
+      "artigo": "317",
+      "texto": "Solicitar ou receber, para si ou para outrem, direta ou indiretamente, ainda que fora da função ou antes de assumi-la, mas em razão dela, vantagem indevida, ou aceitar promessa de tal vantagem: Pena – reclusão, de 2 (dois) a 12 (doze) anos, e multa."
+    },
+    {
+      "artigo": "330",
+      "texto": "Desobedecer a ordem legal de funcionário público: Pena - detenção, de quinze dias a seis meses, e multa."
+    },
+    {
+      "artigo": "331",
+      "texto": "Desacatar funcionário público no exercício da função ou em razão dela: Pena - detenção, de seis meses a dois anos, ou multa."
+    }
+  ]
+}
