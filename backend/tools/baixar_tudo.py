@@ -246,7 +246,7 @@ if "sumulas_stf" not in ckpt["etapas"]:
 # ============================================================
 if "leis" not in ckpt["etapas"]:
     logger.info("=" * 50)
-    logger.info("5/5 LEGISLACAO")
+    logger.info("5/6 LEGISLACAO")
     LEIS = [
         ("Constituição Federal", "CF/1988", "constituicao", "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"),
         ("Código Civil", "Lei 10.406/2002", "lei_federal", "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm"),
