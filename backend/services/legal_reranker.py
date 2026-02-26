@@ -209,34 +209,38 @@ def _apply_doctrinal_diversity(results: List[Dict]) -> List[Dict]:
                        "administrador", "admin", "user", "usuario", "vitor", "pgj",
                        "dalvio", "scanner", "ocr", "calibre", ""}
 
-    # Group by author, filtering anonymous
-    by_author = defaultdict(list)
+    # Separate: laws/sumulas always pass through, doctrine gets filtered
+    laws_sumulas = []
+    doctrine = []
+
     for r in results:
         meta = r.get("metadata", {})
-        author = meta.get("author", "")
-        author_lower = author.lower().strip() if author else ""
+        tipo = meta.get("tipo_documento", meta.get("fonte_normativa", ""))
+        if tipo in ("lei", "sumula", "legislacao", "constituicao"):
+            laws_sumulas.append(r)
+        else:
+            author = meta.get("author", "")
+            author_lower = author.lower().strip() if author else ""
+            if author_lower not in ANONYMOUS_NAMES and len(author_lower) >= 3:
+                doctrine.append(r)
 
-        # Skip anonymous authors
-        if author_lower in ANONYMOUS_NAMES or len(author_lower) < 3:
-            continue
-
-        author_key = meta.get("author_id") or author
+    # Group doctrine by author, max 3 per author
+    by_author = defaultdict(list)
+    for r in doctrine:
+        meta = r.get("metadata", {})
+        author_key = meta.get("author_id") or meta.get("author", "")
         by_author[author_key].append(r)
 
-    # Sort each author's chunks by score
     for author in by_author:
         by_author[author].sort(key=lambda x: x.get("final_score", 0), reverse=True)
 
-    # Limit to max 3 chunks per author
-    diversified = []
+    diversified_doctrine = []
     for author, chunks in by_author.items():
-        diversified.extend(chunks[:3])
+        diversified_doctrine.extend(chunks[:3])
 
-    # If nothing after filtering, return originals (without anonymous)
-    if not diversified:
-        return [r for r in results if (r.get("metadata", {}).get("author", "") or "").lower().strip() not in ANONYMOUS_NAMES]
-
-    return diversified
+    # Combine: laws first, then doctrine
+    combined = laws_sumulas + diversified_doctrine
+    return combined if combined else results
 
 
 # ============================================================
