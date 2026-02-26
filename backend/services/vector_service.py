@@ -64,22 +64,26 @@ def get_index() -> Optional[VectorStoreIndex]:
         # Priority 1: Remote Qdrant (ngrok/cloud)
         if QDRANT_REMOTE_URL:
             logger.info(f"Connecting to remote Qdrant: {QDRANT_REMOTE_URL}")
-            _qdrant_client = QdrantClient(
-                url=QDRANT_REMOTE_URL,
-                timeout=60,
-                prefer_grpc=False,
-            )
-            vector_store = QdrantVectorStore(
-                client=_qdrant_client,
-                collection_name=COLLECTION_NAME,
-            )
-            storage_context = StorageContext.from_defaults(vector_store=vector_store)
-            _index = VectorStoreIndex.from_documents([], storage_context=storage_context)
-            _using_qdrant = True
-
-            info = _qdrant_client.get_collection(COLLECTION_NAME)
-            logger.info(f"Remote Qdrant loaded. Points: {info.points_count}")
-            return _index
+            try:
+                _qdrant_client = QdrantClient(
+                    url=QDRANT_REMOTE_URL,
+                    timeout=15,
+                    prefer_grpc=False,
+                )
+                # Quick test
+                info = _qdrant_client.get_collection(COLLECTION_NAME)
+                logger.info(f"Remote Qdrant connected! Points: {info.points_count}")
+                
+                vector_store = QdrantVectorStore(
+                    client=_qdrant_client,
+                    collection_name=COLLECTION_NAME,
+                )
+                storage_context = StorageContext.from_defaults(vector_store=vector_store)
+                _index = VectorStoreIndex.from_documents([], storage_context=storage_context)
+                _using_qdrant = True
+                return _index
+            except Exception as e:
+                logger.warning(f"Remote Qdrant failed: {e}. Falling back to local.")
 
         # Priority 2: Local Qdrant
         qdrant_path = None
