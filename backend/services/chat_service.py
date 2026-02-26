@@ -93,7 +93,7 @@ async def process_question(
     # =========================================================
     # STEP 2: LEGAL RE-RANKER
     # =========================================================
-    FINAL_CHUNKS = 12
+    FINAL_CHUNKS = 8  # Fewer but more relevant
     logger.info(f"[2/6] Legal Re-Ranker ({len(raw_results)} → {FINAL_CHUNKS})...")
     filtered_results = legal_reranker.rerank(
         raw_results=raw_results,
