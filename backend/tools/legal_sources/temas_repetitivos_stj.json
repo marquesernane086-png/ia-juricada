@@ -1,0 +1,114 @@
+{
+ "decisoes": [
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 1091443/SP",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 1",
+   "ementa": "TEMA REPETITIVO 1 - STJ - CORTE ESPECIAL",
+   "tese": "A substituição processual, no polo ativo da execução, do exequente originário pelo cessionário dispensa a autorização ou o consentimento do devedor.",
+   "area_direito": "Processo Civil",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 1102473/RS",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 2",
+   "ementa": "TEMA REPETITIVO 2 - STJ - CORTE ESPECIAL",
+   "tese": "Comprovada a validade do ato de cessão dos honorários advocatícios sucumbenciais, realizado por escritura pública, bem como discriminado no precatório o valor devido a título da respectiva verba advocatícia, deve-se reconhecer a legitimidade do cessionário para se habilitar no crédito consignado no precatório.",
+   "area_direito": "Processo Civil",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 970217/RS",
+   "relator": "NAPOLEÃO NUNES MAIA FILHO",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 3",
+   "ementa": "TEMA REPETITIVO 3 - STJ - TERCEIRA SEÇÃO",
+   "tese": "A imposição ao Estado do Rio Grande do Sul da conversão das retribuições aos servidores pela URV somente seria cabível se evidenciado algum prejuízo vencimental decorrente daquela antecipação voluntária.",
+   "area_direito": "Direito Administrativo",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 1086944/SP",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 4",
+   "ementa": "TEMA REPETITIVO 4 - STJ - TERCEIRA SEÇÃO",
+   "tese": "O art. 1º-F, da Lei 9.494/97, que fixa os juros moratórios nas ações ajuizadas contra a Fazenda Pública no patamar de 6%, é de ser aplicado tão somente às demandas ajuizadas após a sua entrada em vigor.",
+   "area_direito": "Direito Administrativo",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 1073976/RS",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 5",
+   "ementa": "TEMA REPETITIVO 5 - STJ - TERCEIRA SEÇÃO",
+   "tese": "Na hipótese em que se pretende a revisão de ato de reforma de policial militar, a prescrição aplicável é de fundo do direito, nos termos do artigo 1º do Decreto nº 20.910/32.",
+   "area_direito": "Direito Administrativo",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 990284/RS",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 6",
+   "ementa": "TEMA REPETITIVO 6 - STJ - TERCEIRA SEÇÃO",
+   "tese": "Os servidores públicos militares, que foram contemplados com reajustes inferiores, têm direito às diferenças entre estes e o índice de 28,86%.",
+   "area_direito": "Direito Administrativo",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 990284/RS",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 7",
+   "ementa": "TEMA REPETITIVO 7 - STJ - TERCEIRA SEÇÃO",
+   "tese": "O reajuste de 28,86% incide sobre a remuneração do servidor, o que inclui o vencimento básico ou o soldo, acrescido das parcelas que não os têm como base de cálculo.",
+   "area_direito": "Direito Administrativo",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 990284/RS",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 8",
+   "ementa": "TEMA REPETITIVO 8 - STJ - TERCEIRA SEÇÃO",
+   "tese": "A correção monetária deve incidir a partir da data em que deveria ter sido efetuado o pagamento de cada parcela.",
+   "area_direito": "Direito Administrativo",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 990284/RS",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 9",
+   "ementa": "TEMA REPETITIVO 9 - STJ - TERCEIRA SEÇÃO",
+   "tese": "O reajuste de 28,86% não pode ser compensado com a rubrica paga a título de complementação de salário mínimo.",
+   "area_direito": "Direito Administrativo",
+   "palavras_chave": []
+  },
+  {
+   "tribunal": "STJ",
+   "processo": "REsp 990284/RS",
+   "relator": "MARIA THEREZA DE ASSIS MOURA",
+   "data_julgamento": "",
+   "tema": "Tema Repetitivo 10",
+   "ementa": "TEMA REPETITIVO 10 - STJ - TERCEIRA SEÇÃO",
+   "tese": "Quanto a prescrição à pretensão dos servidores públicos militares ao reajuste de 28,86%: se ajuizada a ação ordinária até 30/06/2003, os efeitos financeiros devem retroagir a janeiro de 1993.",
+   "area_direito": "Direito Administrativo",
+   "palavras_chave": []
+  }
+ ]
+}
