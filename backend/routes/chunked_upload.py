@@ -161,9 +161,10 @@ async def _process_upload(file_path: str, filename: str):
             logger.error(f"Formato nao suportado: {filename}")
             return
 
-        # Remove ZIP to free space
-        os.remove(file_path)
-        logger.info("ZIP removido para liberar espaco")
+        # Keep ZIP as backup (don't delete)
+        backup_path = Path("/tmp") / f"backup_{filename}"
+        shutil.move(file_path, str(backup_path))
+        logger.info(f"ZIP salvo como backup: {backup_path}")
 
         # Find qdrant collection data
         qdrant_src = None
