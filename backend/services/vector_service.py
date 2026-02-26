@@ -56,12 +56,28 @@ def get_index() -> Optional[VectorStoreIndex]:
 
     get_embed_model()
 
-    # Try Qdrant first - check both paths
+    # Try Qdrant first - remote, then local
     try:
         from qdrant_client import QdrantClient
         from llama_index.vector_stores.qdrant import QdrantVectorStore
 
-        # Check both possible Qdrant locations
+        # Priority 1: Remote Qdrant (ngrok/cloud)
+        if QDRANT_REMOTE_URL:
+            logger.info(f"Connecting to remote Qdrant: {QDRANT_REMOTE_URL}")
+            _qdrant_client = QdrantClient(url=QDRANT_REMOTE_URL)
+            vector_store = QdrantVectorStore(
+                client=_qdrant_client,
+                collection_name=COLLECTION_NAME,
+            )
+            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+            _index = VectorStoreIndex.from_documents([], storage_context=storage_context)
+            _using_qdrant = True
+
+            info = _qdrant_client.get_collection(COLLECTION_NAME)
+            logger.info(f"Remote Qdrant loaded. Points: {info.points_count}")
+            return _index
+
+        # Priority 2: Local Qdrant
         qdrant_path = None
         for path in [QDRANT_DIR, QDRANT_DIR_ALT]:
             if os.path.exists(path) and os.listdir(path):
