@@ -74,15 +74,18 @@ async def process_question(
     raw_results = [r for r in search_results if r.get("score", 0) >= 0.10]
     logger.info(f"  Retrieved: {len(search_results)} → Pre-filtered: {len(raw_results)}")
     
+    # Even without sources, the AI can answer with legal knowledge
     if not raw_results:
+        logger.info("  No sources found — using AI legal knowledge only")
+        # Generate answer using LLM knowledge (no sources)
+        answer = reasoning_service.generate_response(
+            question=question,
+            search_results=[],
+            doctrine_context="Nenhuma fonte recuperada do acervo. Responda com seu conhecimento jurídico estruturante."
+        )
         processing_time = time.time() - start_time
         return ChatResponse(
-            answer=(
-                "## RELATÓRIO\n\n"
-                "Não foram encontradas fontes doutrinárias indexadas no acervo para responder "
-                "a esta questão.\n\n"
-                "**Recomendação:** Faça o upload de obras doutrinárias relacionadas."
-            ),
+            answer=answer,
             sources=[],
             session_id=session_id,
             question=question,
