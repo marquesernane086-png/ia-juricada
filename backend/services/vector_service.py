@@ -61,29 +61,25 @@ def get_index() -> Optional[VectorStoreIndex]:
         from qdrant_client import QdrantClient
         from llama_index.vector_stores.qdrant import QdrantVectorStore
 
-        # Priority 1: Remote Qdrant (ngrok/cloud)
+        # Priority 1: Remote Qdrant (ngrok/cloud) via REST API
         if QDRANT_REMOTE_URL:
             logger.info(f"Connecting to remote Qdrant: {QDRANT_REMOTE_URL}")
             try:
-                _qdrant_client = QdrantClient(
-                    url=QDRANT_REMOTE_URL,
-                    timeout=15,
-                    prefer_grpc=False,
-                )
-                # Quick test
-                info = _qdrant_client.get_collection(COLLECTION_NAME)
-                logger.info(f"Remote Qdrant connected! Points: {info.points_count}")
-                
-                vector_store = QdrantVectorStore(
-                    client=_qdrant_client,
-                    collection_name=COLLECTION_NAME,
-                )
-                storage_context = StorageContext.from_defaults(vector_store=vector_store)
-                _index = VectorStoreIndex.from_documents([], storage_context=storage_context)
-                _using_qdrant = True
-                return _index
+                import requests as req
+                headers = {"ngrok-skip-browser-warning": "true"}
+                r = req.get(f"{QDRANT_REMOTE_URL}/collections/{COLLECTION_NAME}", headers=headers, timeout=10)
+                if r.status_code == 200:
+                    pts = r.json().get("result", {}).get("points_count", 0)
+                    logger.info(f"Remote Qdrant connected via REST! Points: {pts}")
+                    _using_qdrant = True
+                    _qdrant_client = None  # Using REST mode
+                    # Create a minimal LlamaIndex wrapper — search uses REST directly
+                    _index = _create_rest_index()
+                    return _index
+                else:
+                    logger.warning(f"Remote Qdrant returned {r.status_code}")
             except Exception as e:
-                logger.warning(f"Remote Qdrant failed: {e}. Falling back to local.")
+                logger.warning(f"Remote Qdrant REST failed: {e}. Falling back.")
 
         # Priority 2: Local Qdrant
         qdrant_path = None
