@@ -44,7 +44,7 @@ async def process_question(
     cache = get_cache()
     cached = cache.get(question)
     if cached:
-        logger.info(f"[CACHE HIT] Returning cached response")
+        logger.info("[CACHE HIT] Returning cached response")
         return ChatResponse(**cached)
     
     # =========================================================
