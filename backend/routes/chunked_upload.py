@@ -17,7 +17,8 @@ router = APIRouter(prefix="/upload-large", tags=["upload-large"])
 
 db: Optional[AsyncIOMotorDatabase] = None
 UPLOAD_DIR = Path("/tmp") / "jurista_uploads"
-QDRANT_DIR = Path(__file__).parent.parent / "data" / "qdrant_data"
+# Use overlay disk (72GB) instead of /app (4.6GB)
+QDRANT_DIR = Path("/tmp") / "qdrant_persistent"
 
 
 def set_db(database):
