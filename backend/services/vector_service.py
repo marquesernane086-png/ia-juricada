@@ -29,7 +29,8 @@ _using_qdrant = False
 
 INDEX_DIR = str(Path(__file__).parent.parent / "data" / "indice")
 QDRANT_DIR = str(Path(__file__).parent.parent / "data" / "qdrant_data")
-QDRANT_DIR_ALT = "/tmp/qdrant_persistent"  # overflow for large datasets
+QDRANT_DIR_ALT = "/tmp/qdrant_persistent"
+QDRANT_REMOTE_URL = os.environ.get("QDRANT_URL", "")  # Remote Qdrant server
 COLLECTION_NAME = "jurista_legal_docs"
 
 
