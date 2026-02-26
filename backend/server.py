@@ -141,17 +141,19 @@ async def download_documentacao():
 
 
 # Import and register route modules
-from routes import document_routes, chat_routes, import_routes
+from routes import document_routes, chat_routes, import_routes, chunked_upload
 
 # Set database references
 document_routes.set_db(db)
 chat_routes.set_db(db)
 import_routes.set_db(db)
+chunked_upload.set_db(db)
 
 # Include route modules
 api_router.include_router(document_routes.router)
 api_router.include_router(chat_routes.router)
 api_router.include_router(import_routes.router)
+api_router.include_router(chunked_upload.router)
 
 # Include the API router
 app.include_router(api_router)
