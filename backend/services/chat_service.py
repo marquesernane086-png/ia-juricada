@@ -39,6 +39,15 @@ async def process_question(
     start_time = time.time()
     
     # =========================================================
+    # CACHE CHECK
+    # =========================================================
+    cache = get_cache()
+    cached = cache.get(question)
+    if cached:
+        logger.info(f"[CACHE HIT] Returning cached response")
+        return ChatResponse(**cached)
+    
+    # =========================================================
     # STEP 0: LEGAL ISSUE EXTRACTOR
     # =========================================================
     logger.info(f"[0/5] Legal Issue Extractor: {question[:80]}...")
