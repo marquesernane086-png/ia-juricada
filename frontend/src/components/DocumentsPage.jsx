@@ -534,6 +534,35 @@ export default function DocumentsPage() {
           </div>
         )}
 
+        {/* Large file upload (Qdrant data) */}
+        <div className="border-2 border-dashed rounded-xl p-4 text-center border-purple-300 hover:border-purple-500 transition-all cursor-pointer"
+          onClick={() => largeUploadRef.current?.click()}
+          data-testid="large-upload"
+        >
+          <input
+            ref={largeUploadRef}
+            type="file"
+            className="hidden"
+            accept=".7z,.zip"
+            onChange={handleLargeUpload}
+          />
+          {largeUpload ? (
+            <div>
+              <p className="text-sm font-medium mb-2">{largeUpload.status}</p>
+              <Progress value={largeUpload.progress} className="h-3" />
+              <p className="text-xs text-muted-foreground mt-1">{largeUpload.filename}</p>
+            </div>
+          ) : (
+            <>
+              <HardDrive className="w-8 h-8 mx-auto mb-2 text-purple-500" />
+              <p className="text-sm font-medium">Upload Qdrant (arquivo grande)</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Arquivo .7z ou .zip da pasta qdrant_data/ (até 20GB)
+              </p>
+            </>
+          )}
+        </div>
+
         {/* Search and count */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
