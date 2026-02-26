@@ -52,7 +52,7 @@ def _search_qdrant_rest(query: str, n_results: int = 10) -> list:
     query_vector = model.encode(query, normalize_embeddings=True).tolist()
 
     headers = {"ngrok-skip-browser-warning": "true", "Content-Type": "application/json"}
-    payload = {"query": query_vector, "limit": n_results, "with_payload": True}
+    payload = {"query": query_vector, "limit": n_results * 3, "with_payload": True}  # Fetch more for re-ranker
 
     r = req.post(
         f"{QDRANT_REMOTE_URL}/collections/{COLLECTION_NAME}/points/query",
