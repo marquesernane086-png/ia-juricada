@@ -55,14 +55,21 @@ def get_index() -> Optional[VectorStoreIndex]:
 
     get_embed_model()
 
-    # Try Qdrant first
+    # Try Qdrant first - check both paths
     try:
         from qdrant_client import QdrantClient
         from llama_index.vector_stores.qdrant import QdrantVectorStore
 
-        if os.path.exists(QDRANT_DIR) and os.listdir(QDRANT_DIR):
-            logger.info(f"Loading Qdrant from: {QDRANT_DIR}")
-            _qdrant_client = QdrantClient(path=QDRANT_DIR)
+        # Check both possible Qdrant locations
+        qdrant_path = None
+        for path in [QDRANT_DIR, QDRANT_DIR_ALT]:
+            if os.path.exists(path) and os.listdir(path):
+                qdrant_path = path
+                break
+
+        if qdrant_path:
+            logger.info(f"Loading Qdrant from: {qdrant_path}")
+            _qdrant_client = QdrantClient(path=qdrant_path)
             vector_store = QdrantVectorStore(
                 client=_qdrant_client,
                 collection_name=COLLECTION_NAME,
