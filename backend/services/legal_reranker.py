@@ -144,32 +144,40 @@ def _apply_legal_filtering(results: List[Dict], legal_issues: Dict) -> List[Dict
 # ============================================================
 
 def _apply_doctrinal_diversity(results: List[Dict]) -> List[Dict]:
-    """Ensure multiple authors, max 3 chunks per author initially."""
+    """Ensure multiple authors, max 3 chunks per author. Filter anonymous."""
 
-    # Group by author
+    ANONYMOUS_NAMES = {"anonymous", "unknown", "desconhecido", "autor desconhecido",
+                       "administrador", "admin", "user", "usuario", "vitor", "pgj",
+                       "dalvio", "scanner", "ocr", "calibre", ""}
+
+    # Group by author, filtering anonymous
     by_author = defaultdict(list)
     for r in results:
         meta = r.get("metadata", {})
-        author_key = meta.get("author_id") or meta.get("author", "") or "unknown"
+        author = meta.get("author", "")
+        author_lower = author.lower().strip() if author else ""
+
+        # Skip anonymous authors
+        if author_lower in ANONYMOUS_NAMES or len(author_lower) < 3:
+            continue
+
+        author_key = meta.get("author_id") or author
         by_author[author_key].append(r)
 
     # Sort each author's chunks by score
     for author in by_author:
         by_author[author].sort(key=lambda x: x.get("final_score", 0), reverse=True)
 
-    # If 2+ authors, limit to max 3 per author initially
-    # This prevents one author dominating all 12 slots
-    if len(by_author) >= 2:
-        diversified = []
-        for author, chunks in by_author.items():
-            diversified.extend(chunks[:5])  # Max 5 per author in candidate pool
-        return diversified
+    # Limit to max 3 chunks per author
+    diversified = []
+    for author, chunks in by_author.items():
+        diversified.extend(chunks[:3])
 
-    # Single author: return all
-    all_chunks = []
-    for chunks in by_author.values():
-        all_chunks.extend(chunks)
-    return all_chunks
+    # If nothing after filtering, return originals (without anonymous)
+    if not diversified:
+        return [r for r in results if (r.get("metadata", {}).get("author", "") or "").lower().strip() not in ANONYMOUS_NAMES]
+
+    return diversified
 
 
 # ============================================================
