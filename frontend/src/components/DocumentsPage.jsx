@@ -218,8 +218,10 @@ export default function DocumentsPage() {
   const [editForm, setEditForm] = useState({});
   const fileInputRef = useRef(null);
   const importInputRef = useRef(null);
+  const largeUploadRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [importDragOver, setImportDragOver] = useState(false);
+  const [largeUpload, setLargeUpload] = useState(null); // {progress, status, filename}
 
   const fetchDocuments = useCallback(async () => {
     try {
