@@ -319,6 +319,58 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleLargeUpload = async (e) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    setLargeUpload({ progress: 0, status: "Iniciando...", filename: file.name });
+
+    try {
+      // 1. Init
+      const initForm = new FormData();
+      initForm.append("filename", file.name);
+      initForm.append("total_chunks", totalChunks);
+      initForm.append("total_size", file.size);
+      const initRes = await axios.post(`${API}/upload-large/init`, initForm);
+      const uploadId = initRes.data.upload_id;
+
+      // 2. Send chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const blob = file.slice(start, end);
+
+        const chunkForm = new FormData();
+        chunkForm.append("upload_id", uploadId);
+        chunkForm.append("chunk_index", i);
+        chunkForm.append("chunk", blob, `chunk_${i}`);
+
+        await axios.post(`${API}/upload-large/chunk`, chunkForm, {
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 120000,
+        });
+
+        const pct = Math.round(((i + 1) / totalChunks) * 100);
+        setLargeUpload({ progress: pct, status: `Enviando... ${pct}% (${i+1}/${totalChunks})`, filename: file.name });
+      }
+
+      // 3. Finalize
+      setLargeUpload({ progress: 100, status: "Montando arquivo no servidor...", filename: file.name });
+      const finalForm = new FormData();
+      finalForm.append("upload_id", uploadId);
+      const finalRes = await axios.post(`${API}/upload-large/finalize`, finalForm, { timeout: 600000 });
+
+      setLargeUpload({ progress: 100, status: `✅ ${finalRes.data.message}`, filename: file.name });
+      fetchDocuments();
+    } catch (err) {
+      console.error("Large upload error:", err);
+      setLargeUpload({ progress: 0, status: `❌ Erro: ${err.message}`, filename: file.name });
+    }
+
+    if (e.target) e.target.value = "";
+  };
+
   const handleDelete = async (docId) => {
     try {
       await axios.delete(`${API}/documents/${docId}`);
