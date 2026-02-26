@@ -204,12 +204,27 @@ def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None)
         all_results.extend(rest_results)
 
     # SOURCE 2: LlamaIndex local (leis + súmulas — 8.8k chunks)
+    # Do TWO searches: one normal + one targeted for súmulas
     try:
         local_index = _get_local_index()
         if local_index and len(local_index.docstore.docs) > 0:
-            retriever = local_index.as_retriever(similarity_top_k=min(n_results, 10))
+            # Search 1: Normal query for laws
+            retriever = local_index.as_retriever(similarity_top_k=min(n_results, 8))
             nodes = retriever.retrieve(query)
-            for node in nodes:
+
+            # Search 2: Targeted for súmulas (add "Súmula STJ" to query)
+            sumula_query = f"Súmula STJ {query}"
+            nodes_sumulas = retriever.retrieve(sumula_query)
+
+            # Combine, deduplicate by node_id
+            seen_ids = set()
+            all_nodes = []
+            for node in nodes + nodes_sumulas:
+                if node.node_id not in seen_ids:
+                    seen_ids.add(node.node_id)
+                    all_nodes.append(node)
+
+            for node in all_nodes:
                 meta = node.metadata or {}
                 score = node.score if node.score is not None else 0.0
                 # Parse author from title if needed
