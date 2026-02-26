@@ -263,7 +263,7 @@ def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None)
                     "score": round(float(score), 4),
                     "id": node.node_id or "",
                 })
-            logger.info(f"Local search: {len(nodes)} results (leis+súmulas)")
+            logger.info(f"Local search: {len(all_nodes)} results (leis+súmulas)")
     except Exception as e:
         logger.warning(f"Local search error: {e}")
 
