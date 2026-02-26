@@ -44,38 +44,50 @@ def _create_rest_index():
 
 
 def _search_qdrant_rest(query: str, n_results: int = 10) -> list:
-    """Search Qdrant via REST API (bypasses qdrant-client TLS issues)."""
+    """Search ALL Qdrant collections via REST API."""
     import requests as req
     from sentence_transformers import SentenceTransformer
 
     model = SentenceTransformer(os.environ.get('EMBEDDING_MODEL', 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'))
     query_vector = model.encode(query, normalize_embeddings=True).tolist()
-
     headers = {"ngrok-skip-browser-warning": "true", "Content-Type": "application/json"}
-    payload = {"query": query_vector, "limit": n_results * 3, "with_payload": True}  # Fetch more for re-ranker
 
-    r = req.post(
-        f"{QDRANT_REMOTE_URL}/collections/{COLLECTION_NAME}/points/query",
-        json=payload, headers=headers, timeout=30
-    )
+    # Search ALL 4 collections
+    COLLECTIONS_TO_SEARCH = [
+        ("jurista_legal_docs", n_results * 2),      # doutrina (mais resultados)
+        ("jurista_leis", 8),                          # legislação
+        ("jurista_sumulas", 5),                       # súmulas
+        ("jurista_jurisprudencia", 5),                # jurisprudência
+    ]
 
-    if r.status_code != 200:
-        logger.error(f"Qdrant REST search failed: {r.status_code}")
-        return []
+    all_results = []
 
-    data = r.json()
-    results = []
-    for point in data.get("result", {}).get("points", []):
-        payload = point.get("payload", {})
-        score = point.get("score", 0.0)
-        results.append({
-            "text": payload.get("text", ""),
-            "metadata": {k: v for k, v in payload.items() if k != "text"},
-            "score": round(float(score), 4),
-            "id": str(point.get("id", "")),
-        })
+    for collection, limit in COLLECTIONS_TO_SEARCH:
+        try:
+            payload = {"query": query_vector, "limit": limit, "with_payload": True}
+            r = req.post(
+                f"{QDRANT_REMOTE_URL}/collections/{collection}/points/query",
+                json=payload, headers=headers, timeout=15
+            )
+            if r.status_code != 200:
+                continue
 
-    return results
+            data = r.json()
+            for point in data.get("result", {}).get("points", []):
+                p = point.get("payload", {})
+                score = point.get("score", 0.0)
+                all_results.append({
+                    "text": p.get("text", ""),
+                    "metadata": {k: v for k, v in p.items() if k != "text"},
+                    "score": round(float(score), 4),
+                    "id": str(point.get("id", "")),
+                    "_collection": collection,
+                })
+        except Exception as e:
+            logger.warning(f"Search {collection} failed: {e}")
+
+    logger.info(f"Qdrant REST: {len(all_results)} results from {len(COLLECTIONS_TO_SEARCH)} collections")
+    return all_results
 
 
 def get_embed_model() -> HuggingFaceEmbedding:
