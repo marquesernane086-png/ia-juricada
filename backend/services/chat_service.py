@@ -182,7 +182,7 @@ async def process_question(
     
     logger.info(f"Pipeline complete: {processing_time:.1f}s")
     
-    return ChatResponse(
+    response = ChatResponse(
         answer=validated_answer,
         sources=sources,
         session_id=session_id,
@@ -190,3 +190,8 @@ async def process_question(
         processing_time=round(processing_time, 2),
         chunks_retrieved=len(filtered_results)
     )
+    
+    # Cache the response
+    cache.put(question, response.model_dump())
+    
+    return response
