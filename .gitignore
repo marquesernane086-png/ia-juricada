@@ -81,3 +81,4 @@ android-sdk/ backend/data/indice/docstore.json
 backend/data/indice/default__vector_store.json
 backend/data/indice/docstore.json
 backend/data/uploads/chunks/extracted/qdrant_data/collection/jurista_legal_docs/storage.sqlite
+backend/data/qdrant_data/collection/jurista_legal_docs/storage.sqlite
