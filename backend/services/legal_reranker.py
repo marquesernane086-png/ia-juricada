@@ -39,9 +39,14 @@ def rerank(
     legal_issues = legal_issues or {}
 
     # =========================================================
+    # STEP 1.5: AREA RELEVANCE FILTER (remove wrong legal areas)
+    # =========================================================
+    relevant = _filter_irrelevant_areas(raw_results, legal_issues)
+
+    # =========================================================
     # STEP 2: LEGAL FILTERING (score boost)
     # =========================================================
-    scored = _apply_legal_filtering(raw_results, legal_issues)
+    scored = _apply_legal_filtering(relevant, legal_issues)
 
     # =========================================================
     # STEP 3: DOCTRINAL DIVERSITY (group by author)
