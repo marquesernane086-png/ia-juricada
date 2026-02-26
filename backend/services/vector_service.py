@@ -64,7 +64,11 @@ def get_index() -> Optional[VectorStoreIndex]:
         # Priority 1: Remote Qdrant (ngrok/cloud)
         if QDRANT_REMOTE_URL:
             logger.info(f"Connecting to remote Qdrant: {QDRANT_REMOTE_URL}")
-            _qdrant_client = QdrantClient(url=QDRANT_REMOTE_URL)
+            _qdrant_client = QdrantClient(
+                url=QDRANT_REMOTE_URL,
+                timeout=30,
+                metadata={"ngrok-skip-browser-warning": "true"},
+            )
             vector_store = QdrantVectorStore(
                 client=_qdrant_client,
                 collection_name=COLLECTION_NAME,
