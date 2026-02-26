@@ -196,6 +196,13 @@ def add_document(text: str, metadata: Dict) -> int:
 
 
 def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None) -> List[Dict]:
+    # REST mode: bypass LlamaIndex entirely
+    if _rest_mode and QDRANT_REMOTE_URL:
+        rest_results = _search_qdrant_rest(query, n_results)
+        if rest_results:
+            return rest_results
+        # Fall through to local if REST fails
+
     index = get_index()
     if index is None:
         logger.warning("Index not available.")
