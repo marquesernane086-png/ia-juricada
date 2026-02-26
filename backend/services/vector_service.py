@@ -28,7 +28,7 @@ _qdrant_client = None
 _using_qdrant = False
 
 INDEX_DIR = str(Path(__file__).parent.parent / "data" / "indice")
-QDRANT_DIR = "/data/qdrant_data"
+QDRANT_DIR = str(Path(__file__).parent.parent / "data" / "qdrant_data")
 COLLECTION_NAME = "jurista_legal_docs"
 
 
