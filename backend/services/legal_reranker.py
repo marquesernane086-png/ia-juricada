@@ -156,9 +156,18 @@ def _apply_legal_filtering(results: List[Dict], legal_issues: Dict) -> List[Dict
         meta = r.get("metadata", {})
         base_score = r.get("score", 0.0)
         boost = 0.0
+        tipo = meta.get("tipo_documento", meta.get("fonte_normativa", ""))
+
+        # PRIORITY BOOST: Leis e Súmulas sempre têm boost máximo
+        if tipo in ("lei", "legislacao", "sumula", "constituicao"):
+            boost += 0.50  # Forte boost absoluto para fontes normativas
+            if tipo == "sumula":
+                boost += 0.30  # Súmulas ainda mais
+            if tipo == "constituicao":
+                boost += 0.40
 
         # 2a: Legal subject match (+40%)
-        chunk_area = (meta.get("legal_subject", "") or meta.get("materia", "") or "").lower()
+        chunk_area = (meta.get("legal_subject", "") or meta.get("materia", "") or meta.get("area", "") or "").lower()
         if detected_area and chunk_area and detected_area in chunk_area:
             boost += base_score * 0.40
 
@@ -170,10 +179,10 @@ def _apply_legal_filtering(results: List[Dict], legal_issues: Dict) -> List[Dict
             except (ValueError, TypeError):
                 peso = 0
         if peso > 1:
-            boost += base_score * (peso * 0.05)  # constituicao(5)=+25%, lei(2)=+10%
+            boost += base_score * (peso * 0.05)
 
         # 2c: Article reference match
-        artigo = str(meta.get("artigo_referenciado", ""))
+        artigo = str(meta.get("artigo_referenciado", meta.get("artigo", "")))
         if artigo and artigo in question_articles:
             boost += base_score * 0.20
 
