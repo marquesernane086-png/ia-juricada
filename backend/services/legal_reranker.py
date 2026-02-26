@@ -90,6 +90,51 @@ def rerank(
 
 
 # ============================================================
+# STEP 1.5: AREA RELEVANCE FILTER
+# ============================================================
+
+# Mapping of which areas are compatible
+COMPATIBLE_AREAS = {
+    "direito civil": {"direito civil", "direito do consumidor", "processo civil", "geral"},
+    "direito do consumidor": {"direito do consumidor", "direito civil", "processo civil", "geral"},
+    "direito penal": {"direito penal", "processo penal", "geral"},
+    "processo civil": {"processo civil", "direito civil", "direito do consumidor", "geral"},
+    "processo penal": {"processo penal", "direito penal", "geral"},
+    "direito constitucional": {"direito constitucional", "geral"},
+    "direito administrativo": {"direito administrativo", "geral"},
+    "direito tributario": {"direito tributario", "geral"},
+    "direito do trabalho": {"direito do trabalho", "geral"},
+    "direito empresarial": {"direito empresarial", "direito civil", "geral"},
+}
+
+
+def _filter_irrelevant_areas(results: List[Dict], legal_issues: Dict) -> List[Dict]:
+    """Remove chunks from completely unrelated legal areas."""
+    detected_area = (legal_issues.get("legal_area", "") or "").lower()
+
+    if not detected_area:
+        return results
+
+    compatible = COMPATIBLE_AREAS.get(detected_area, {detected_area, "geral"})
+
+    filtered = []
+    for r in results:
+        meta = r.get("metadata", {})
+        chunk_area = (meta.get("legal_subject", "") or meta.get("materia", "") or meta.get("area", "") or "geral").lower()
+
+        # Keep if area is compatible or if it's legislation/sumula (always relevant)
+        tipo = meta.get("tipo_documento", meta.get("fonte_normativa", ""))
+        if tipo in ("lei", "sumula", "legislacao", "constituicao"):
+            filtered.append(r)
+        elif any(c in chunk_area for c in compatible):
+            filtered.append(r)
+        # else: skip (irrelevant area)
+
+    logger.info(f"  Area filter: {len(results)} → {len(filtered)} (area: {detected_area})")
+    return filtered if filtered else results  # fallback to all if filter too aggressive
+
+
+# ============================================================
 # STEP 2: LEGAL FILTERING
 # ============================================================
 
