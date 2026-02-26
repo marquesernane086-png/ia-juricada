@@ -14,6 +14,7 @@ import logging
 from typing import Dict, List, Optional
 
 from services import vector_service, reasoning_service, citation_guardian, doctrine_comparator, legal_issue_extractor, doctrine_graph, doctrine_synthesizer, legal_reranker
+from services.semantic_cache import get_cache
 from models.schemas import ChatResponse, SourceReference
 
 logger = logging.getLogger(__name__)
