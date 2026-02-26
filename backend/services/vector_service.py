@@ -35,6 +35,49 @@ QDRANT_REMOTE_URL = os.environ.get("QDRANT_URL", "")  # Remote Qdrant server
 COLLECTION_NAME = "jurista_legal_docs"
 
 
+
+def _create_rest_index():
+    """Create a dummy index marker for REST mode."""
+    global _rest_mode
+    _rest_mode = True
+    return "REST_MODE"
+
+
+def _search_qdrant_rest(query: str, n_results: int = 10) -> list:
+    """Search Qdrant via REST API (bypasses qdrant-client TLS issues)."""
+    import requests as req
+    from sentence_transformers import SentenceTransformer
+
+    model = SentenceTransformer(os.environ.get('EMBEDDING_MODEL', 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'))
+    query_vector = model.encode(query, normalize_embeddings=True).tolist()
+
+    headers = {"ngrok-skip-browser-warning": "true", "Content-Type": "application/json"}
+    payload = {"query": query_vector, "limit": n_results, "with_payload": True}
+
+    r = req.post(
+        f"{QDRANT_REMOTE_URL}/collections/{COLLECTION_NAME}/points/query",
+        json=payload, headers=headers, timeout=30
+    )
+
+    if r.status_code != 200:
+        logger.error(f"Qdrant REST search failed: {r.status_code}")
+        return []
+
+    data = r.json()
+    results = []
+    for point in data.get("result", {}).get("points", []):
+        payload = point.get("payload", {})
+        score = point.get("score", 0.0)
+        results.append({
+            "text": payload.get("text", ""),
+            "metadata": {k: v for k, v in payload.items() if k != "text"},
+            "score": round(float(score), 4),
+            "id": str(point.get("id", "")),
+        })
+
+    return results
+
+
 def get_embed_model() -> HuggingFaceEmbedding:
     global _embed_model
     if _embed_model is None:
