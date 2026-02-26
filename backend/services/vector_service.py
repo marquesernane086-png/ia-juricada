@@ -196,28 +196,89 @@ def add_document(text: str, metadata: Dict) -> int:
 
 
 def search(query: str, n_results: int = 10, where_filter: Optional[Dict] = None) -> List[Dict]:
-    # REST mode: bypass LlamaIndex entirely
+    all_results = []
+
+    # SOURCE 1: Qdrant remoto (doutrina — 2.1M chunks)
     if _rest_mode and QDRANT_REMOTE_URL:
         rest_results = _search_qdrant_rest(query, n_results)
-        if rest_results:
-            return rest_results
-        # Fall through to local if REST fails
+        all_results.extend(rest_results)
 
-    index = get_index()
-    if index is None:
-        logger.warning("Index not available.")
-        return []
+    # SOURCE 2: LlamaIndex local (leis + súmulas — 8.8k chunks)
+    try:
+        local_index = _get_local_index()
+        if local_index and len(local_index.docstore.docs) > 0:
+            retriever = local_index.as_retriever(similarity_top_k=min(n_results, 10))
+            nodes = retriever.retrieve(query)
+            for node in nodes:
+                meta = node.metadata or {}
+                score = node.score if node.score is not None else 0.0
+                # Parse author from title if needed
+                author = meta.get("author", meta.get("autor", ""))
+                title = meta.get("title", meta.get("norma", meta.get("arquivo", "")))
+                import re
+                if not author and title:
+                    match = re.match(r'^([^,]+),\s*(\d{4})\.\s*(.+)$', title)
+                    if match:
+                        author = match.group(1).strip()
+                        title = match.group(3).strip()
 
-    # Check if empty
-    if _using_qdrant and _qdrant_client:
+                all_results.append({
+                    "text": node.get_text(),
+                    "metadata": {
+                        "doc_id": meta.get("doc_id", meta.get("hash", meta.get("identifier", ""))),
+                        "author": author,
+                        "title": title,
+                        "year": meta.get("year", meta.get("ano", "")),
+                        "edition": meta.get("edition", meta.get("edicao", "")),
+                        "legal_subject": meta.get("legal_subject", meta.get("area", "")),
+                        "legal_institute": meta.get("legal_institute", ""),
+                        "page": meta.get("page", meta.get("pagina", meta.get("artigo", ""))),
+                        "chapter": meta.get("capitulo", meta.get("chapter", "")),
+                        "author_id": meta.get("author_id", ""),
+                        "work_id": meta.get("work_id", ""),
+                        "chapter_id": meta.get("chapter_id", ""),
+                        "doctrine_id": meta.get("doctrine_id", ""),
+                        "fonte_normativa": meta.get("fonte_normativa", meta.get("hierarquia", "")),
+                        "orgao_julgador": meta.get("orgao_julgador", meta.get("court", "")),
+                        "peso_normativo": meta.get("peso_normativo", 0),
+                        "posicao_doutrinaria": meta.get("posicao_doutrinaria", ""),
+                        "tipo_documento": meta.get("tipo_documento", ""),
+                        "source_type": meta.get("source_type", ""),
+                    },
+                    "score": round(float(score), 4),
+                    "id": node.node_id or "",
+                })
+            logger.info(f"Local search: {len(nodes)} results (leis+súmulas)")
+    except Exception as e:
+        logger.warning(f"Local search error: {e}")
+
+    if not all_results:
+        logger.warning("No results from any source.")
+
+    logger.info(f"Combined search: {len(all_results)} total results")
+    return all_results
+
+
+def _get_local_index():
+    """Get LlamaIndex local index (leis + súmulas). Cached."""
+    global _local_index
+    if _local_index is not None:
+        return _local_index
+
+    docstore_path = os.path.join(INDEX_DIR, "docstore.json")
+    if os.path.exists(docstore_path):
         try:
-            info = _qdrant_client.get_collection(COLLECTION_NAME)
-            if info.points_count == 0:
-                logger.warning("Qdrant collection is empty.")
-                return []
-        except Exception:
-            pass
-    elif not _using_qdrant:
+            get_embed_model()
+            storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+            _local_index = load_index_from_storage(storage_context)
+            logger.info(f"Local index loaded: {len(_local_index.docstore.docs)} docs (leis+súmulas)")
+            return _local_index
+        except Exception as e:
+            logger.warning(f"Could not load local index: {e}")
+
+    return None
+
+_local_index = None
         if len(index.docstore.docs) == 0:
             logger.warning("Index is empty.")
             return []
