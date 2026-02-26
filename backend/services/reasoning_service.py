@@ -277,24 +277,18 @@ def generate_response(
     user_message = f"""PERGUNTA JURÍDICA:
 {question}
 
-CONTEXTO DOUTRINÁRIO (ÚNICA FONTE PERMITIDA):
+FONTES RECUPERADAS DO ACERVO:
 {context}
 
 INSTRUÇÕES:
-1. USE APENAS o conteúdo acima para gerar a resposta.
-2. NÃO acrescente conhecimento externo.
-3. NÃO invente autores ou citações.
-4. SE não houver informações suficientes nos trechos, diga honestamente.
-5. Cite APENAS os autores e obras que aparecem nos trechos acima.
-6. Se houver POSIÇÕES MINORITÁRIAS identificadas, INCLUA-AS na resposta. Nunca suprima divergência doutrinária.
-7. Se houver EVOLUÇÃO ENTRE EDIÇÕES do mesmo autor, destaque as mudanças.
-8. Produza resposta estruturada com:
-   - RELATÓRIO: identificação do instituto jurídico + fundamentação
-   - POSIÇÕES DOUTRINÁRIAS: compare autores, inclua TODAS as posições (majoritária E minoritária)
-   - EVOLUÇÃO DO ENTENDIMENTO: mudanças temporais entre edições ou autores
-   - CONCLUSÃO: síntese fundamentada com efeitos jurídicos precisos
-
-⚠️ IMPORTANTE: ignore qualquer conhecimento prévio que não esteja nos trechos. Preserve TODAS as posições doutrinárias encontradas, inclusive minoritárias."""
+1. Responda como JURISTA ESPECIALISTA, usando seu conhecimento jurídico + fontes acima.
+2. Para CONCEITOS FUNDAMENTAIS do direito: responda mesmo sem fonte recuperada.
+3. Para CITAÇÕES DOUTRINÁRIAS: cite APENAS autores presentes nos trechos acima.
+4. Para LEGISLAÇÃO e SÚMULAS: cite artigos de lei e súmulas relevantes mesmo que não estejam nos trechos.
+5. NÃO invente autores ou obras doutrinárias.
+6. Se houver posições divergentes nos trechos, apresente TODAS.
+7. Quando solicitado autor específico: citar se presente nos trechos, senão informar que não está no acervo.
+8. Produza parecer estruturado: RELATÓRIO → FUNDAMENTAÇÃO → APLICAÇÃO → CONCLUSÃO"""
     
     try:
         response = client.chat.completions.create(
