@@ -279,65 +279,6 @@ def _get_local_index():
     return None
 
 _local_index = None
-        if len(index.docstore.docs) == 0:
-            logger.warning("Index is empty.")
-            return []
-
-    try:
-        retriever = index.as_retriever(similarity_top_k=n_results)
-        nodes = retriever.retrieve(query)
-    except Exception as e:
-        logger.error(f"Search error: {e}")
-        return []
-
-    formatted = []
-    for node in nodes:
-        meta = node.metadata or {}
-        score = node.score if node.score is not None else 0.0
-
-        # Extract author/title from combined fields
-        author = meta.get("author", meta.get("autor", ""))
-        title = meta.get("title", meta.get("arquivo", ""))
-        year = meta.get("year", meta.get("ano", ""))
-
-        # Parse "Author, Year. Title" format
-        if not author and title:
-            match = re.match(r'^([^,]+),\s*(\d{4})\.\s*(.+)$', title)
-            if match:
-                author = match.group(1).strip()
-                if not year:
-                    year = int(match.group(2))
-                title = match.group(3).strip()
-
-        formatted.append({
-            "text": node.get_text(),
-            "metadata": {
-                "doc_id": meta.get("doc_id", meta.get("hash", "")),
-                "author": author,
-                "title": title,
-                "year": year,
-                "edition": meta.get("edition", meta.get("edicao", "")),
-                "legal_subject": meta.get("legal_subject", meta.get("materia", "")),
-                "legal_institute": meta.get("legal_institute", ""),
-                "page": meta.get("page", meta.get("pagina", "")),
-                "chapter": meta.get("capitulo", meta.get("chapter", "")),
-                "author_id": meta.get("author_id", ""),
-                "work_id": meta.get("work_id", ""),
-                "chapter_id": meta.get("chapter_id", ""),
-                "doctrine_id": meta.get("doctrine_id", ""),
-                "fonte_normativa": meta.get("fonte_normativa", ""),
-                "orgao_julgador": meta.get("orgao_julgador", ""),
-                "peso_normativo": meta.get("peso_normativo", 0),
-                "posicao_doutrinaria": meta.get("posicao_doutrinaria", ""),
-            },
-            "score": round(float(score), 4),
-            "id": node.node_id or "",
-        })
-
-    logger.info(f"Search returned {len(formatted)} results for: {query[:80]}...")
-    return formatted
-
-
 def delete_document_chunks(doc_id: str) -> int:
     # TODO: implement for Qdrant
     return 0
