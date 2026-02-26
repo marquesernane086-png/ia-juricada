@@ -131,76 +131,88 @@ async def finalize_upload(upload_id: str = Form(...), background_tasks: Backgrou
 async def _process_upload(file_path: str, filename: str):
     """Processa o arquivo importado em background."""
     try:
-        logger.info(f"Processando: {filename}")
+        logger.info(f"Processando: {filename} ({Path(file_path).stat().st_size/(1024*1024):.0f}MB)")
 
-        if filename.endswith(".7z"):
-            # Extract 7z
-            extract_dir = Path(file_path).parent / "extracted"
-            extract_dir.mkdir(exist_ok=True)
-            # Try py7zr
+        extract_dir = Path(file_path).parent / "extracted"
+        extract_dir.mkdir(exist_ok=True)
+
+        if filename.endswith(".zip"):
+            # Use command line unzip (low memory)
+            import subprocess
+            result = subprocess.run(
+                ["unzip", "-o", file_path, "-d", str(extract_dir)],
+                capture_output=True, text=True, timeout=600
+            )
+            if result.returncode != 0:
+                logger.error(f"unzip failed: {result.stderr[:500]}")
+                return
+            logger.info(f"ZIP extraido com unzip")
+
+        elif filename.endswith(".7z"):
             try:
                 import py7zr
                 with py7zr.SevenZipFile(file_path, mode='r') as z:
                     z.extractall(path=str(extract_dir))
-                logger.info(f"7z extraido para: {extract_dir}")
+                logger.info(f"7z extraido")
             except ImportError:
-                logger.error("py7zr nao instalado. Instale: pip install py7zr")
+                logger.error("py7zr nao instalado")
                 return
-
-        elif filename.endswith(".zip"):
-            import zipfile
-            extract_dir = Path(file_path).parent / "extracted"
-            extract_dir.mkdir(exist_ok=True)
-            with zipfile.ZipFile(file_path, 'r') as z:
-                z.extractall(str(extract_dir))
-            logger.info(f"ZIP extraido para: {extract_dir}")
-
         else:
             logger.error(f"Formato nao suportado: {filename}")
             return
 
-        # Find qdrant_data in extracted
+        # Remove ZIP to free space
+        os.remove(file_path)
+        logger.info("ZIP removido para liberar espaco")
+
+        # Find qdrant collection data
         qdrant_src = None
-        for item in extract_dir.rglob("collection"):
-            if item.is_dir():
-                qdrant_src = item.parent
-                break
+        for item in extract_dir.rglob("storage.sqlite"):
+            qdrant_src = item.parent.parent  # collection/ parent
+            break
 
         if not qdrant_src:
-            # Maybe the extracted folder IS qdrant_data
-            for item in extract_dir.iterdir():
-                if item.is_dir() and (item / "collection").exists():
-                    qdrant_src = item
+            for item in extract_dir.rglob("collection"):
+                if item.is_dir():
+                    qdrant_src = item.parent
                     break
 
-            if not qdrant_src:
-                # Try direct copy
-                qdrant_src = extract_dir
-
+        if not qdrant_src:
+            qdrant_src = extract_dir
+            
         logger.info(f"Qdrant source: {qdrant_src}")
 
-        # Copy to qdrant_data
+        # Setup qdrant destination
         QDRANT_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Move (not copy) to save space
         for item in qdrant_src.iterdir():
             dest = QDRANT_DIR / item.name
-            if item.is_file():
-                shutil.copy2(str(item), str(dest))
-            elif item.is_dir():
-                if dest.exists():
+            if dest.exists():
+                if dest.is_dir():
                     shutil.rmtree(str(dest))
-                shutil.copytree(str(item), str(dest))
+                else:
+                    dest.unlink()
+            shutil.move(str(item), str(dest))
+            logger.info(f"Movido: {item.name}")
 
-        logger.info(f"Qdrant data copiado para: {QDRANT_DIR}")
+        # Also copy meta.json if exists
+        meta_src = qdrant_src / "meta.json"
+        if meta_src.exists():
+            shutil.move(str(meta_src), str(QDRANT_DIR / "meta.json"))
+
+        logger.info(f"Qdrant data em: {QDRANT_DIR}")
 
         # Cleanup
-        os.remove(file_path)
-        shutil.rmtree(extract_dir, ignore_errors=True)
+        shutil.rmtree(str(extract_dir), ignore_errors=True)
 
-        # Reset vector service
+        # Reset vector service to load new data
         from services import vector_service
         vector_service.reset_index()
 
-        logger.info("Import concluido!")
+        logger.info("IMPORT CONCLUIDO!")
 
     except Exception as e:
         logger.error(f"Erro processando upload: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
