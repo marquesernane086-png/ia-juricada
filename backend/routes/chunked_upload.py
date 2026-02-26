@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/upload-large", tags=["upload-large"])
 
 db: Optional[AsyncIOMotorDatabase] = None
-UPLOAD_DIR = Path(__file__).parent.parent / "data" / "uploads" / "chunks"
+UPLOAD_DIR = Path("/tmp") / "jurista_uploads"
 QDRANT_DIR = Path(__file__).parent.parent / "data" / "qdrant_data"
 
 
