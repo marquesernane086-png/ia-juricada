@@ -29,6 +29,7 @@ _using_qdrant = False
 
 INDEX_DIR = str(Path(__file__).parent.parent / "data" / "indice")
 QDRANT_DIR = str(Path(__file__).parent.parent / "data" / "qdrant_data")
+QDRANT_DIR_ALT = "/tmp/qdrant_persistent"  # overflow for large datasets
 COLLECTION_NAME = "jurista_legal_docs"
 
 
