@@ -64,10 +64,14 @@ def get_index() -> Optional[VectorStoreIndex]:
         # Priority 1: Remote Qdrant (ngrok/cloud)
         if QDRANT_REMOTE_URL:
             logger.info(f"Connecting to remote Qdrant: {QDRANT_REMOTE_URL}")
+            import httpx
             _qdrant_client = QdrantClient(
                 url=QDRANT_REMOTE_URL,
                 timeout=30,
-                metadata={"ngrok-skip-browser-warning": "true"},
+                https_client=httpx.Client(
+                    headers={"ngrok-skip-browser-warning": "true"},
+                    verify=False,
+                ),
             )
             vector_store = QdrantVectorStore(
                 client=_qdrant_client,
