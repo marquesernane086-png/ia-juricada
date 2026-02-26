@@ -178,25 +178,66 @@ if "pesquisa" not in ckpt["etapas"]:
 # ============================================================
 if "sumulas_stf" not in ckpt["etapas"]:
     logger.info("=" * 50)
-    logger.info("4/5 SUMULAS VINCULANTES STF")
-    sv = [
-        (1, "Ofende a garantia constitucional do ato jurídico perfeito a decisão que, sem ponderar as circunstâncias do caso concreto, desconsidera a validez e a eficácia de acordo constante de termo de adesão instituído pela Lei Complementar nº 110/2001."),
-        (2, "É inconstitucional a lei ou ato normativo estadual ou distrital que disponha sobre sistemas de consórcios e sorteios, inclusive bingos e loterias."),
-        (3, "Nos processos perante o Tribunal de Contas da União asseguram-se o contraditório e a ampla defesa quando da decisão puder resultar anulação ou revogação de ato administrativo que beneficie o interessado."),
-        (4, "Salvo nos casos previstos na Constituição, o salário mínimo não pode ser usado como indexador de base de cálculo de vantagem de servidor público ou de empregado."),
-        (5, "A falta de defesa técnica por advogado no processo administrativo disciplinar não ofende a Constituição."),
-        (10, "Viola a cláusula de reserva de plenário (CF, artigo 97) a decisão de órgão fracionário de tribunal que afasta a incidência de lei ou ato normativo do Poder Público."),
-        (11, "O uso de algemas é excepcional e deve ser justificado por escrito, sob pena de responsabilidade disciplinar, civil e penal do agente."),
-        (13, "A nomeação de cônjuge, companheiro ou parente em linha reta, colateral ou por afinidade, até o terceiro grau, para o exercício de cargo em comissão ou de confiança, viola a Constituição Federal."),
+    logger.info("4/6 SUMULAS STF (736 + vinculantes)")
+    os.makedirs("jurisprudencia/sumulas_stf", exist_ok=True)
+
+    all_sumulas = []
+    # Crawl all pages (30 per page, ~25 pages)
+    for page in range(1, 30):
+        logger.info(f"  Pagina {page}/25...")
+        try:
+            url = f"https://informativos.trilhante.com.br/sumulas/stf?page={page}"
+            r = requests.get(url, timeout=30)
+            text = r.text
+
+            # Parse: **Súmula NNN**\n\nDATE\n\nTEXTO
+            matches = re.findall(r'\*\*Súmula (\d+)\*\*.*?\\n\\n.*?\\n\\n(.*?)(?=\[|$)', text)
+            if not matches:
+                # Try HTML parsing
+                soup = BeautifulSoup(text, "html.parser")
+                page_text = soup.get_text()
+                current_num = None
+                for line in page_text.split("\n"):
+                    line = line.strip()
+                    m = re.match(r'Súmula (\d+)', line)
+                    if m:
+                        current_num = int(m.group(1))
+                    elif current_num and len(line) > 30 and not line.startswith("STF") and not re.match(r'\d{2}/\d{4}', line) and "Superado" not in line:
+                        all_sumulas.append({"numero": current_num, "texto": line})
+                        current_num = None
+
+            if not all_sumulas or (page > 1 and len(all_sumulas) == prev_count):
+                break
+            prev_count = len(all_sumulas)
+            time.sleep(2)
+        except Exception as e:
+            logger.error(f"  Erro: {e}")
+            break
+
+    prev_count = 0
+
+    # Also add vinculantes
+    sumulas_vinculantes = [
+        (1, "Ofende a garantia constitucional do ato jurídico perfeito a decisão que desconsidera a validez e a eficácia de acordo constante de termo de adesão instituído pela LC 110/2001."),
+        (2, "É inconstitucional a lei ou ato normativo estadual ou distrital que disponha sobre sistemas de consórcios e sorteios."),
+        (3, "Nos processos perante o TCU asseguram-se o contraditório e a ampla defesa quando da decisão puder resultar anulação ou revogação de ato administrativo."),
+        (4, "Salvo nos casos previstos na CF, o salário mínimo não pode ser usado como indexador de base de cálculo de vantagem de servidor público."),
+        (5, "A falta de defesa técnica por advogado no PAD não ofende a Constituição."),
+        (10, "Viola a cláusula de reserva de plenário (CF art. 97) a decisão de órgão fracionário que afasta incidência de lei."),
+        (11, "O uso de algemas é excepcional e deve ser justificado por escrito."),
+        (13, "A nomeação de cônjuge, companheiro ou parente até 3º grau para cargo em comissão viola a CF (nepotismo)."),
         (14, "É direito do defensor ter acesso amplo aos elementos de prova já documentados em procedimento investigatório."),
-        (25, "É ilícita a prisão civil de depositário infiel, qualquer que seja a modalidade do depósito."),
-        (26, "Para efeito de progressão de regime no cumprimento de pena por crime hediondo, o juízo da execução observará a inconstitucionalidade do art. 2º da Lei nº 8.072/1990."),
+        (25, "É ilícita a prisão civil de depositário infiel."),
+        (26, "Para progressão de regime por crime hediondo, observar a inconstitucionalidade do art. 2º da Lei 8.072/1990."),
         (31, "É inconstitucional a incidência do ISS sobre operações de locação de bens móveis."),
-        (37, "Não cabe ao Poder Judiciário aumentar vencimentos de servidores públicos sob o fundamento de isonomia."),
+        (37, "Não cabe ao Judiciário aumentar vencimentos de servidores sob fundamento de isonomia."),
     ]
-    with open(os.path.join(DIRS["sumulas_stf"], "sumulas_vinculantes_stf.json"), "w", encoding="utf-8") as f:
-        json.dump([{"numero": n, "texto": t} for n, t in sv], f, ensure_ascii=False, indent=1)
-    logger.info(f"  {len(sv)} sumulas salvas")
+    for num, texto in sumulas_vinculantes:
+        all_sumulas.append({"numero": num, "texto": texto, "vinculante": True})
+
+    with open(os.path.join("jurisprudencia/sumulas_stf", "sumulas_stf.json"), "w", encoding="utf-8") as f:
+        json.dump(all_sumulas, f, ensure_ascii=False, indent=1)
+    logger.info(f"  {len(all_sumulas)} sumulas STF salvas")
     ckpt["etapas"].append("sumulas_stf")
     salvar()
 
