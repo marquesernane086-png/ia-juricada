@@ -26,6 +26,7 @@ _index = None
 _embed_model = None
 _qdrant_client = None
 _using_qdrant = False
+_rest_mode = False  # True when using REST API directly (ngrok workaround)
 
 INDEX_DIR = str(Path(__file__).parent.parent / "data" / "indice")
 QDRANT_DIR = str(Path(__file__).parent.parent / "data" / "qdrant_data")
