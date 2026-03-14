@@ -9,11 +9,11 @@ This stage is LOCAL PROCESSING (no LLM call) to avoid token cost.
 It structures the doctrinal landscape for the final reasoning stage.
 """
 
-import logging
+from utils.logger import get_logger
 from typing import List, Dict
 from services.doctrine_graph import DoctrinalBlock
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ============================================================

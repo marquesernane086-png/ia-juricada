@@ -8,12 +8,12 @@ Pipeline:
 All processing in memory. No index reload. No vector rebuild.
 """
 
-import logging
+from utils.logger import get_logger
 from typing import List, Dict
 from collections import defaultdict
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 CURRENT_YEAR = datetime.now().year
 

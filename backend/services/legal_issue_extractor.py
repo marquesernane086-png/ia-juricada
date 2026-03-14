@@ -11,11 +11,11 @@ Does NOT answer, cite, or explain. Only decomposes.
 
 import os
 import json
-import logging
+from utils.logger import get_logger
 from typing import Dict, Optional
 from openai import OpenAI
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 EXTRACTION_PROMPT = """Você é um classificador jurídico brasileiro. Sua ÚNICA função é decompor perguntas jurídicas em componentes estruturados.
 

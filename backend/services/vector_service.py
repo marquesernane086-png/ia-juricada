@@ -6,7 +6,7 @@ Falls back to LlamaIndex default if Qdrant not initialized.
 
 import os
 import re
-import logging
+from utils.logger import get_logger
 import shutil
 from typing import List, Dict, Optional
 from pathlib import Path
@@ -20,7 +20,7 @@ from llama_index.core import (
 )
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _index = None
 _embed_model = None

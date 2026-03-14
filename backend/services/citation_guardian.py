@@ -7,11 +7,11 @@ Pipeline position: AFTER reasoning, BEFORE response delivery.
 """
 
 import re
-import logging
+from utils.logger import get_logger
 from typing import List, Dict, Tuple
 from difflib import SequenceMatcher
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _normalize(text: str) -> str:

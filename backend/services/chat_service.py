@@ -10,14 +10,14 @@ Pipeline:
 """
 
 import time
-import logging
+from utils.logger import get_logger
 from typing import Dict, List, Optional
 
 from services import vector_service, reasoning_service, citation_guardian, doctrine_comparator, legal_issue_extractor, doctrine_graph, doctrine_synthesizer, legal_reranker
 from services.semantic_cache import get_cache
 from models.schemas import ChatResponse, SourceReference
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def process_question(

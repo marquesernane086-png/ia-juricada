@@ -84,8 +84,8 @@ async def _process_import(zip_path: str):
                         "total_chunks": 0,
                         "status": "indexed",
                         "error_message": None,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "created_at": datetime.now(timezone.utc),
+                        "updated_at": datetime.now(timezone.utc),
                     }
                     await db.documents.insert_one(doc_record)
                     docs_imported += 1
@@ -107,8 +107,8 @@ async def _process_import(zip_path: str):
                         continue
                     doc_info.setdefault("id", fh[:36])
                     doc_info.setdefault("status", "indexed")
-                    doc_info.setdefault("created_at", datetime.now(timezone.utc).isoformat())
-                    doc_info.setdefault("updated_at", datetime.now(timezone.utc).isoformat())
+                    doc_info.setdefault("created_at", datetime.now(timezone.utc))
+                    doc_info.setdefault("updated_at", datetime.now(timezone.utc))
                     await db.documents.insert_one(doc_info)
                 break
 

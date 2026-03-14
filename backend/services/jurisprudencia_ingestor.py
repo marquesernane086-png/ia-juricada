@@ -15,12 +15,12 @@ import os
 import re
 import json
 import hashlib
-import logging
+from utils.logger import get_logger
 import time
 from typing import List, Dict, Optional
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 CHUNK_SIZE = 700
 CHUNK_OVERLAP = 120

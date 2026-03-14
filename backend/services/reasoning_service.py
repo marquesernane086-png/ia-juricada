@@ -1,12 +1,12 @@
 """Reasoning Service - Doctrinal legal reasoning engine using OpenAI."""
 
 import os
-import logging
+from utils.logger import get_logger
 from typing import List, Dict, Optional
 from openai import OpenAI
 from services.indexing_service import compute_temporal_weight
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # System prompt for the legal reasoning AI
 SYSTEM_PROMPT = """Você é o JuristaAI, jurista especialista brasileiro.

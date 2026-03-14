@@ -9,11 +9,11 @@ Analyzes retrieved chunks to detect:
 Pipeline position: AFTER vector retrieval, BEFORE reasoning.
 """
 
-import logging
+from utils.logger import get_logger
 from typing import List, Dict, Tuple
 from collections import defaultdict
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def cluster_by_author_and_work(results: List[Dict]) -> Dict[str, Dict]:

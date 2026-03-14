@@ -44,7 +44,7 @@ async def _process_document(doc_id: str, file_path: str, file_name: str):
         # Update status to processing
         await db.documents.update_one(
             {"id": doc_id},
-            {"$set": {"status": "processing", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            {"$set": {"status": "processing", "updated_at": datetime.now(timezone.utc)}}
         )
         
         # Step 1: Extract text and metadata
@@ -54,7 +54,7 @@ async def _process_document(doc_id: str, file_path: str, file_name: str):
             raise ValueError("No text could be extracted from the document.")
         
         # Update document with extracted metadata
-        update_fields = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        update_fields = {"updated_at": datetime.now(timezone.utc)}
         if extracted_meta.get("title"):
             update_fields["title"] = extracted_meta["title"]
         if extracted_meta.get("author"):
@@ -94,7 +94,7 @@ async def _process_document(doc_id: str, file_path: str, file_name: str):
             {"$set": {
                 "status": "indexed",
                 "total_chunks": indexed_count,
-                "updated_at": datetime.now(timezone.utc).isoformat()
+                "updated_at": datetime.now(timezone.utc)
             }}
         )
         
@@ -108,7 +108,7 @@ async def _process_document(doc_id: str, file_path: str, file_name: str):
                 {"$set": {
                     "status": "error",
                     "error_message": str(e),
-                    "updated_at": datetime.now(timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc)
                 }}
             )
         except Exception:
@@ -185,8 +185,8 @@ async def upload_document(
     
     # Save to MongoDB
     doc_dict = doc.model_dump()
-    doc_dict['created_at'] = doc_dict['created_at'].isoformat()
-    doc_dict['updated_at'] = doc_dict['updated_at'].isoformat()
+    # created_at already datetime
+    # updated_at already datetime
     await db.documents.insert_one(doc_dict)
     
     # Start background processing
@@ -210,7 +210,7 @@ async def list_documents():
         for field in ['created_at', 'updated_at']:
             if isinstance(doc.get(field), str):
                 try:
-                    doc[field] = datetime.fromisoformat(doc[field])
+                    pass  # already datetime
                 except (ValueError, TypeError):
                     doc[field] = datetime.now(timezone.utc)
     
@@ -230,7 +230,7 @@ async def get_document(doc_id: str):
     for field in ['created_at', 'updated_at']:
         if isinstance(doc.get(field), str):
             try:
-                doc[field] = datetime.fromisoformat(doc[field])
+                pass  # already datetime
             except (ValueError, TypeError):
                 doc[field] = datetime.now(timezone.utc)
     
@@ -246,7 +246,7 @@ async def update_document(doc_id: str, update: DocumentUpdateRequest):
     
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     if update_data:
-        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        update_data["updated_at"] = datetime.now(timezone.utc)
         await db.documents.update_one({"id": doc_id}, {"$set": update_data})
     
     return {"message": "Document updated", "updated_fields": list(update_data.keys())}

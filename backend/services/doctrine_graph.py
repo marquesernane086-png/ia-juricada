@@ -13,11 +13,11 @@ Architecture:
 
 import hashlib
 import re
-import logging
+from utils.logger import get_logger
 from typing import List, Dict, Optional
 from collections import defaultdict
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ============================================================
