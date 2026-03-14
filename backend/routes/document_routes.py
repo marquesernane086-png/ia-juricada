@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from models.schemas import (
@@ -17,6 +17,7 @@ from models.schemas import (
     DocumentUpdateRequest
 )
 from services import ingestion_service, indexing_service, vector_service
+from dependencies.auth import require_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ async def _process_document(doc_id: str, file_path: str, file_name: str):
             pass
 
 
-@router.post("/upload", response_model=DocumentUploadResponse)
+@router.post("/upload", response_model=DocumentUploadResponse, dependencies=[Depends(require_api_key)])
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -199,7 +200,7 @@ async def upload_document(
     )
 
 
-@router.get("", response_model=DocumentListResponse)
+@router.get("", response_model=DocumentListResponse, dependencies=[Depends(require_api_key)])
 async def list_documents():
     """List all documents."""
     docs = await db.documents.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
@@ -236,7 +237,7 @@ async def get_document(doc_id: str):
     return DocumentMetadata(**doc)
 
 
-@router.patch("/{doc_id}")
+@router.patch("/{doc_id}", dependencies=[Depends(require_api_key)])
 async def update_document(doc_id: str, update: DocumentUpdateRequest):
     """Update document metadata."""
     doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
@@ -251,7 +252,7 @@ async def update_document(doc_id: str, update: DocumentUpdateRequest):
     return {"message": "Document updated", "updated_fields": list(update_data.keys())}
 
 
-@router.delete("/{doc_id}")
+@router.delete("/{doc_id}", dependencies=[Depends(require_api_key)])
 async def delete_document(doc_id: str):
     """Delete a document and its chunks from the vector store."""
     doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
@@ -277,7 +278,7 @@ async def delete_document(doc_id: str):
     }
 
 
-@router.post("/{doc_id}/reindex")
+@router.post("/{doc_id}/reindex", dependencies=[Depends(require_api_key)])
 async def reindex_document(doc_id: str, background_tasks: BackgroundTasks):
     """Reindex a document."""
     doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,9 +32,6 @@ import {
   PackageOpen,
   HardDrive,
 } from "lucide-react";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
 
 const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB per chunk
 
@@ -225,7 +222,7 @@ export default function DocumentsPage() {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/documents`);
+      const res = await api.get("/documents");
       setDocuments(res.data.documents || []);
     } catch (e) {
       console.error("Error fetching documents:", e);
@@ -253,7 +250,7 @@ export default function DocumentsPage() {
       formData.append("file", file);
 
       try {
-        await axios.post(`${API}/documents/upload`, formData, {
+        await api.post("/documents/upload", formData, {
           headers: { "Content-Type": "multipart/form-data" },
           onUploadProgress: (progressEvent) => {
             const total = files.length;
@@ -297,7 +294,7 @@ export default function DocumentsPage() {
       const formData = new FormData();
       formData.append("file", file);
       
-      const res = await axios.post(`${API}/import/upload-package`, formData, {
+      const res = await api.post("/import/upload-package", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 300000, // 5 min timeout for large files
       });
@@ -332,7 +329,7 @@ export default function DocumentsPage() {
       initForm.append("filename", file.name);
       initForm.append("total_chunks", totalChunks);
       initForm.append("total_size", file.size);
-      const initRes = await axios.post(`${API}/upload-large/init`, initForm);
+      const initRes = await api.post("/upload-large/init", initForm);
       const uploadId = initRes.data.upload_id;
 
       // 2. Send chunks
@@ -346,7 +343,7 @@ export default function DocumentsPage() {
         chunkForm.append("chunk_index", i);
         chunkForm.append("chunk", blob, `chunk_${i}`);
 
-        await axios.post(`${API}/upload-large/chunk`, chunkForm, {
+        await api.post("/upload-large/chunk", chunkForm, {
           headers: { "Content-Type": "multipart/form-data" },
           timeout: 120000,
         });
@@ -359,7 +356,7 @@ export default function DocumentsPage() {
       setLargeUpload({ progress: 100, status: "Montando arquivo no servidor...", filename: file.name });
       const finalForm = new FormData();
       finalForm.append("upload_id", uploadId);
-      const finalRes = await axios.post(`${API}/upload-large/finalize`, finalForm, { timeout: 600000 });
+      const finalRes = await api.post("/upload-large/finalize", finalForm, { timeout: 600000 });
 
       setLargeUpload({ progress: 100, status: `✅ ${finalRes.data.message}`, filename: file.name });
       fetchDocuments();
@@ -373,7 +370,7 @@ export default function DocumentsPage() {
 
   const handleDelete = async (docId) => {
     try {
-      await axios.delete(`${API}/documents/${docId}`);
+      await api.delete(`/documents/${docId}`);
       fetchDocuments();
     } catch (e) {
       console.error("Error deleting document:", e);
@@ -382,7 +379,7 @@ export default function DocumentsPage() {
 
   const handleReindex = async (docId) => {
     try {
-      await axios.post(`${API}/documents/${docId}/reindex`);
+      await api.post(`/documents/${docId}/reindex`);
       fetchDocuments();
     } catch (e) {
       console.error("Error reindexing document:", e);
@@ -408,7 +405,7 @@ export default function DocumentsPage() {
       if (payload.year) payload.year = parseInt(payload.year);
       else delete payload.year;
 
-      await axios.patch(`${API}/documents/${editDoc.id}`, payload);
+      await api.patch(`/documents/${editDoc.id}`, payload);
       setEditDoc(null);
       fetchDocuments();
     } catch (e) {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
 
 // Loading dots component
 const LoadingDots = () => (
@@ -190,7 +189,7 @@ export default function ChatPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get(`${API}/chat/stats`);
+        const res = await api.get("/chat/stats");
         setStats(res.data);
       } catch (e) {
         console.error("Error fetching stats:", e);
@@ -210,7 +209,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const response = await axios.post(`${API}/chat`, {
+      const response = await api.post("/chat", {
         question,
         session_id: sessionId.current,
         max_sources: 15,

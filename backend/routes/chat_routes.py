@@ -3,11 +3,12 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from models.schemas import ChatRequest, ChatResponse, SystemStats
 from services import chat_service, vector_service
+from dependencies.auth import require_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def set_db(database: AsyncIOMotorDatabase):
     db = database
 
 
-@router.post("", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse, dependencies=[Depends(require_api_key)])
 async def ask_question(request: ChatRequest):
     """Ask a legal question and receive a doctrinal response."""
     if not request.question.strip():
