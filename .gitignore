@@ -86,3 +86,7 @@ backend/data/qdrant_data/collection/jurista_legal_docs/storage.sqlite
 # Environment files
 *.env
 *.env.*
+-e 
+# Environment files
+*.env
+*.env.*
