@@ -182,6 +182,7 @@ if "sumulas_stf" not in ckpt["etapas"]:
     os.makedirs("jurisprudencia/sumulas_stf", exist_ok=True)
 
     all_sumulas = []
+    prev_count = 0
     # Crawl all pages (30 per page, ~25 pages)
     for page in range(1, 30):
         logger.info(f"  Pagina {page}/25...")
@@ -206,15 +207,10 @@ if "sumulas_stf" not in ckpt["etapas"]:
                         all_sumulas.append({"numero": current_num, "texto": line})
                         current_num = None
 
-            if not all_sumulas or (page > 1 and len(all_sumulas) == prev_count):
-                break
-            prev_count = len(all_sumulas)
             time.sleep(2)
         except Exception as e:
             logger.error(f"  Erro: {e}")
             break
-
-    prev_count = 0
 
     # Also add vinculantes
     sumulas_vinculantes = [

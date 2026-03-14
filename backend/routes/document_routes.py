@@ -4,6 +4,7 @@ import os
 import hashlib
 import logging
 import asyncio
+import re
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
@@ -133,10 +134,18 @@ async def upload_document(
     if ext not in ['.pdf', '.epub']:
         raise HTTPException(status_code=400, detail="Only PDF and EPUB files are supported")
     
-    # Save file
-    file_path = UPLOAD_DIR / file.filename
+    # Read and validate size (max 200MB)
     content = await file.read()
+    MAX_SIZE = 200 * 1024 * 1024  # 200MB
+    if len(content) > MAX_SIZE:
+        raise HTTPException(status_code=413, detail=f"File too large. Max: {MAX_SIZE/(1024*1024):.0f}MB")
     
+    # Sanitize filename (prevent path traversal)
+    safe_filename = Path(file.filename).name  # strips any ../ or path components
+    safe_filename = re.sub(r'[^\w\s\-\.\(\)]', '_', safe_filename)  # remove special chars
+    
+    # Save file
+    file_path = UPLOAD_DIR / safe_filename
     with open(file_path, "wb") as f:
         f.write(content)
     

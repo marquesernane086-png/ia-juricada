@@ -75,7 +75,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.environ.get('CORS_ORIGINS', 'https://juristico-ia.preview.emergentagent.com').split(','),
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -44,25 +44,23 @@ def _create_rest_index():
 
 
 def _search_qdrant_rest(query: str, n_results: int = 10) -> list:
-    """Search ALL Qdrant collections via REST API."""
+    """Search ALL Qdrant collections via REST API (parallel)."""
     import requests as req
     from sentence_transformers import SentenceTransformer
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     model = SentenceTransformer(os.environ.get('EMBEDDING_MODEL', 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'))
     query_vector = model.encode(query, normalize_embeddings=True).tolist()
     headers = {"ngrok-skip-browser-warning": "true", "Content-Type": "application/json"}
 
-    # Search ALL 4 collections
     COLLECTIONS_TO_SEARCH = [
-        ("jurista_legal_docs", n_results * 2),      # doutrina (mais resultados)
-        ("jurista_leis", 8),                          # legislação
-        ("jurista_sumulas", 5),                       # súmulas
-        ("jurista_jurisprudencia", 5),                # jurisprudência
+        ("jurista_legal_docs", n_results * 2),
+        ("jurista_leis", 8),
+        ("jurista_sumulas", 5),
+        ("jurista_jurisprudencia", 5),
     ]
 
-    all_results = []
-
-    for collection, limit in COLLECTIONS_TO_SEARCH:
+    def search_one(collection, limit):
         try:
             payload = {"query": query_vector, "limit": limit, "with_payload": True}
             r = req.post(
@@ -70,23 +68,30 @@ def _search_qdrant_rest(query: str, n_results: int = 10) -> list:
                 json=payload, headers=headers, timeout=15
             )
             if r.status_code != 200:
-                continue
-
-            data = r.json()
-            for point in data.get("result", {}).get("points", []):
+                return []
+            results = []
+            for point in r.json().get("result", {}).get("points", []):
                 p = point.get("payload", {})
-                score = point.get("score", 0.0)
-                all_results.append({
+                results.append({
                     "text": p.get("text", ""),
                     "metadata": {k: v for k, v in p.items() if k != "text"},
-                    "score": round(float(score), 4),
+                    "score": round(float(point.get("score", 0)), 4),
                     "id": str(point.get("id", "")),
                     "_collection": collection,
                 })
+            return results
         except Exception as e:
             logger.warning(f"Search {collection} failed: {e}")
+            return []
 
-    logger.info(f"Qdrant REST: {len(all_results)} results from {len(COLLECTIONS_TO_SEARCH)} collections")
+    # Parallel search
+    all_results = []
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(search_one, col, lim): col for col, lim in COLLECTIONS_TO_SEARCH}
+        for future in as_completed(futures):
+            all_results.extend(future.result())
+
+    logger.info(f"Qdrant REST: {len(all_results)} results (parallel, {len(COLLECTIONS_TO_SEARCH)} collections)")
     return all_results
 
 
